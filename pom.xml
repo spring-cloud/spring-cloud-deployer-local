@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.springframework.cloud</groupId>
+	<artifactId>spring-cloud-deployer-local-parent</artifactId>
+	<version>1.1.0.BUILD-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<parent>
+		<groupId>org.springframework.cloud</groupId>
+		<artifactId>spring-cloud-deployer-parent</artifactId>
+		<version>1.1.0.BUILD-SNAPSHOT</version>
+		<relativePath />
+	</parent>
+
+	<properties>
+		<java.version>1.8</java.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<spring-cloud-deployer.version>1.1.0.BUILD-SNAPSHOT</spring-cloud-deployer.version>
+	</properties>
+
+	<modules>
+		<module>spring-cloud-deployer-local</module>
+		<module>spring-cloud-deployer-sample-stream</module>
+		<module>spring-cloud-deployer-sample-task</module>
+	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-deployer-spi</artifactId>
+				<version>${spring-cloud-deployer.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-deployer-resource-support</artifactId>
+				<version>${spring-cloud-deployer.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-deployer-resource-maven</artifactId>
+				<version>${spring-cloud-deployer.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-deployer-spi-test</artifactId>
+				<version>${spring-cloud-deployer.version}</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+</project>

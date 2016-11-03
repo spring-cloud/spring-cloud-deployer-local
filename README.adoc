@@ -1,0 +1,14 @@
+== Spring Cloud Local Deployer
+
+=== Building
+
+Build and skip all tests:
+```
+./mvnw clean package -DskipTests
+```
+
+Or build project and run tests:
+```
+./mvnw clean package
+```
+
