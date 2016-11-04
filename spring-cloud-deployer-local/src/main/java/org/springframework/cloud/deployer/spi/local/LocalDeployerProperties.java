@@ -50,12 +50,12 @@ public class LocalDeployerProperties {
 	 * Array of regular expression patterns for environment variables that
 	 * should be passed to launched applications.
 	 */
-	private String[] envVarsToInherit = { "TMP", "LANG", "LANGUAGE", "LC_.*", "PATH" };
+	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH"};
 
 	/**
 	 * The command to run java.
 	 */
-	private String javaCmd = "java";
+	private String javaCmd = deduceJavaCommand();
 
 	/**
 	 * Maximum number of seconds to wait for application shutdown
@@ -116,6 +116,18 @@ public class LocalDeployerProperties {
 
 	public void setJavaOpts(String javaOpts) {
 		this.javaOpts = javaOpts;
+	}
+
+	private String deduceJavaCommand() {
+		String javaHome = System.getProperty("java.home");
+		if (javaHome == null) {
+			return "java"; // Hope it's in PATH
+		}
+		File javaExecutable = new File(javaHome, "bin/java");
+		if (javaExecutable.exists() && javaExecutable.canExecute()) {
+			return javaExecutable.getAbsolutePath();
+		}
+		return "java";
 	}
 
 }
