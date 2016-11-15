@@ -23,16 +23,19 @@ import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
 
 /**
  * Creates a {@link LocalAppDeployer} and {@link LocalTaskLauncher}
  *
  * @author Mark Fisher
+ * @author Ilayaperumal Gopinathan
  */
 @Configuration
 @EnableConfigurationProperties(LocalDeployerProperties.class)
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
+@Profile(LocalDeployerProperties.LOCAL_PROFILE)
 public class LocalDeployerAutoConfiguration {
 
 	@Bean

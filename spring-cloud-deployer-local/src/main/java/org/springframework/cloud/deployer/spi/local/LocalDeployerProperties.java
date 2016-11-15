@@ -31,6 +31,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
 
+	public static final String LOCAL_PROFILE = "local";
+
 	/**
 	 * Top level prefix for local deployer configuration properties.
 	 */
