@@ -39,16 +39,16 @@ import java.util.Map;
 
 import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
-public class ExecutionCommandBuilderTests {
+public class JavaExecutionCommandBuilderTests {
 
-    private ExecutionCommandBuilder commandBuilder;
+    private JavaCommandBuilder commandBuilder;
     private List<String> args;
     private Map<String, String> deploymentProperties;
     private LocalDeployerProperties localDeployerProperties;
 
     @Before
     public void setUp() {
-        commandBuilder = new ExecutionCommandBuilder();
+        commandBuilder = new JavaCommandBuilder(localDeployerProperties);
         args = new ArrayList<>();
         deploymentProperties = new HashMap<>();
         localDeployerProperties = new LocalDeployerProperties();
