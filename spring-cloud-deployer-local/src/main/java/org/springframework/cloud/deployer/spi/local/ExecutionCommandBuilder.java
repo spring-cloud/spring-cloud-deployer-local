@@ -15,6 +15,7 @@
  */
 package org.springframework.cloud.deployer.spi.local;
 
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.util.ByteSizeUtils;
@@ -34,6 +35,7 @@ import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperti
  * A class to help create the execution command for launching a Java Process.
  *
  * @author Mark Pollack
+ * @author Ilayaperumal Gopinathan
  */
 public class ExecutionCommandBuilder {
 
@@ -89,6 +91,23 @@ public class ExecutionCommandBuilder {
             catch (IOException e) {
                 throw new IllegalStateException(e);
             }
+        }
+    }
+
+    public void addDockerOptions(List<String> commands, AppDeploymentRequest request, Map<String, String> args) {
+        commands.add("docker");
+        commands.add("run");
+        DockerResource dockerResource = (DockerResource) request.getResource();
+        for (Map.Entry<String, String> entry: args.entrySet()) {
+            commands.add("-e");
+            commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+        }
+        try {
+            String dockerImageURI = dockerResource.getURI().toString();
+            commands.add(dockerImageURI.substring("docker:".length()));
+        }
+        catch (IOException e) {
+            throw new IllegalStateException(e);
         }
     }
 

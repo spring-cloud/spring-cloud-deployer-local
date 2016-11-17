@@ -18,7 +18,9 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -27,7 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.cglib.core.Local;
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
 import org.springframework.web.client.ResourceAccessException;
@@ -39,6 +43,7 @@ import org.springframework.web.client.RestTemplate;
  *
  * @author Janne Valkealahti
  * @author Mark Fisher
+ * @author Ilayaperumal Gopinathan
  */
 public abstract class AbstractLocalDeployerSupport {
 
@@ -48,6 +53,10 @@ public abstract class AbstractLocalDeployerSupport {
 
 	private final RestTemplate restTemplate = new RestTemplate();
 
+	private final JavaCommandBuilder javaCommandBuilder;
+
+	private final DockerCommandBuilder dockerCommandBuilder;
+
 	/**
 	 * Instantiates a new abstract deployer support.
 	 *
@@ -56,6 +65,8 @@ public abstract class AbstractLocalDeployerSupport {
 	public AbstractLocalDeployerSupport(LocalDeployerProperties properties) {
 		Assert.notNull(properties, "LocalDeployerProperties must not be null");
 		this.properties = properties;
+		this.javaCommandBuilder = new JavaCommandBuilder(properties);
+		this.dockerCommandBuilder = new DockerCommandBuilder();
 	}
 
 	/**
@@ -66,27 +77,6 @@ public abstract class AbstractLocalDeployerSupport {
 	final protected LocalDeployerProperties getLocalDeployerProperties() {
 		return properties;
 	}
-
-	/**
-	 * Builds the execution command for an application.
-	 *
-	 * @param request the request for the application to execute
-	 * @return the build command as a string array
-	 */
-	private String[] buildExecutionCommand(AppDeploymentRequest request) {
-		ArrayList<String> commands = new ArrayList<String>();
-		commands.add(properties.getJavaCmd());
-		Map<String, String> deploymentProperties = request.getDeploymentProperties();
-		ExecutionCommandBuilder commandBuilder = new ExecutionCommandBuilder();
-		// Add Java System Properties (ie -Dmy.prop=val) before main class or -jar
-		commandBuilder.addJavaOptions(commands, deploymentProperties, properties);
-		commandBuilder.addJavaExecutionOptions(commands, request);
-		commands.addAll(request.getCommandlineArguments());
-		logger.debug("Java Commands = " + commands);
-		return commands.toArray(new String[0]);
-	}
-
-
 
 	/**
 	 * Retain the environment variable strings in the provided set indicated by
@@ -123,7 +113,14 @@ public abstract class AbstractLocalDeployerSupport {
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> args) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		Assert.notNull(args, "Args must be set");
-		ProcessBuilder builder = new ProcessBuilder(buildExecutionCommand(request));
+		String[] commands = null;
+		if (request.getResource() instanceof DockerResource) {
+			commands = this.dockerCommandBuilder.buildExecutionCommand(request, args);
+		}
+		else {
+			commands = this.javaCommandBuilder.buildExecutionCommand(request, args);
+		}
+		ProcessBuilder builder = new ProcessBuilder(commands);
 		retainEnvVars(builder.environment().keySet());
 		builder.environment().putAll(args);
 		return builder;
@@ -183,4 +180,26 @@ public abstract class AbstractLocalDeployerSupport {
 
 		Process getProcess();
 	}
+
+//	private class CompositeCommandBuilder implements CommandBuilder {
+//
+//		private final JavaCommandBuilder javaCommandBuilder;
+//
+//		private final DockerCommandBuilder dockerCommandBuilder;
+//
+//		public CompositeCommandBuilder(JavaCommandBuilder javaCommandBuilder, DockerCommandBuilder dockerCommandBuilder) {
+//			this.javaCommandBuilder = javaCommandBuilder;
+//			this.dockerCommandBuilder = dockerCommandBuilder;
+//		}
+//
+//		@Override
+//		public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args) {
+//			if (request.getResource() instanceof DockerResource) {
+//				return this.dockerCommandBuilder.buildExecutionCommand(request, args);
+//			}
+//			else {
+//				return this.javaCommandBuilder.buildExecutionCommand(request, args);
+//			}
+//		}
+//	}
 }
