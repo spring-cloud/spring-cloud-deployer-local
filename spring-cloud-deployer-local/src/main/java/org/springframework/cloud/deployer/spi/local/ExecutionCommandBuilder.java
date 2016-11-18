@@ -17,6 +17,7 @@ package org.springframework.cloud.deployer.spi.local;
 
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.util.ByteSizeUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -44,7 +45,8 @@ public class ExecutionCommandBuilder {
                                LocalDeployerProperties localDeployerProperties) {
         String memory = null;
         if (deploymentProperties.containsKey(AppDeployer.MEMORY_PROPERTY_KEY)) {
-            memory = "-Xmx" + deploymentProperties.get(AppDeployer.MEMORY_PROPERTY_KEY);
+            memory = "-Xmx" +
+                    ByteSizeUtils.parseToMebibytes(deploymentProperties.get(AppDeployer.MEMORY_PROPERTY_KEY)) + "m";
         }
 
         String javaOptsString = getValue(deploymentProperties, "javaOpts");

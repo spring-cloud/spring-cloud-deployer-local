@@ -64,6 +64,14 @@ public class ExecutionCommandBuilderTests {
     }
 
     @Test
+    public void testDirectJavaMemoryOptionWithG() {
+        deploymentProperties.put(AppDeployer.MEMORY_PROPERTY_KEY, "1g");
+        commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
+        assertThat(args.size(), is(1));
+        assertThat(args.get(0), is("-Xmx1024m"));
+    }
+
+    @Test
     public void testJavaMemoryOption() {
         deploymentProperties.put(PREFIX + ".javaOpts", "-Xmx1024m");
         commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
