@@ -99,7 +99,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		args.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
 		args.put("endpoints.shutdown.enabled", "true");
 		args.put("endpoints.jmx.unique-names", "true");
-		args.put("spring.cloud.application.group", group);
+		if (group != null) {
+			args.put("spring.cloud.application.group", group);
+		}
 		try {
 			Path deploymentGroupDir = Paths.get(logPathRoot.toFile().getAbsolutePath(),
 					group + "-" + System.currentTimeMillis());
