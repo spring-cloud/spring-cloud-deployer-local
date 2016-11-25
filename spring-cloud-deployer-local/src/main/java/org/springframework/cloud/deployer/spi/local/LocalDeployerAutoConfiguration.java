@@ -35,13 +35,15 @@ import org.springframework.core.Ordered;
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 public class LocalDeployerAutoConfiguration {
 
-	@Bean
+	public static final String DEPLOYER = "Local";
+
+	@Bean(DEPLOYER + AppDeployer.APP_DEPLOYER_NAME_SUFFIX)
 	@ConditionalOnMissingBean(AppDeployer.class)
 	public AppDeployer appDeployer(LocalDeployerProperties properties) {
 		return new LocalAppDeployer(properties);
 	}
 
-	@Bean
+	@Bean(DEPLOYER + TaskLauncher.TASK_LAUNCHER_NAME_SUFFIX)
 	@ConditionalOnMissingBean(TaskLauncher.class)
 	public TaskLauncher taskLauncher(LocalDeployerProperties properties) {
 		return new LocalTaskLauncher(properties);
