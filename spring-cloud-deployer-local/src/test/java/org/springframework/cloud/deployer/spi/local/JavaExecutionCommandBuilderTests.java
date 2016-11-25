@@ -39,7 +39,7 @@ import java.util.Map;
 
 import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
-public class ExecutionCommandBuilderTests {
+public class JavaExecutionCommandBuilderTests {
 
     private JavaCommandBuilder commandBuilder;
     private List<String> args;

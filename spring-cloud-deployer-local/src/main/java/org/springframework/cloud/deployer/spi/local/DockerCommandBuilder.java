@@ -46,8 +46,14 @@ public class DockerCommandBuilder implements CommandBuilder {
 		commands.add("run");
 		DockerResource dockerResource = (DockerResource) request.getResource();
 		for (Map.Entry<String, String> entry : args.entrySet()) {
-			commands.add("-e");
-			commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+			if (entry.getKey().equals(LocalAppDeployer.SERVER_PORT_KEY)) {
+				commands.add("-p");
+				commands.add(String.format("%s:8080", args.get(entry.getKey())));
+			}
+			else {
+				commands.add("-e");
+				commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+			}
 		}
 		try {
 			String dockerImageURI = dockerResource.getURI().toString();

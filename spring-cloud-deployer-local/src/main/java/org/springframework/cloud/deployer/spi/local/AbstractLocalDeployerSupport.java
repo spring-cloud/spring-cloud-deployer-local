@@ -180,26 +180,4 @@ public abstract class AbstractLocalDeployerSupport {
 
 		Process getProcess();
 	}
-
-//	private class CompositeCommandBuilder implements CommandBuilder {
-//
-//		private final JavaCommandBuilder javaCommandBuilder;
-//
-//		private final DockerCommandBuilder dockerCommandBuilder;
-//
-//		public CompositeCommandBuilder(JavaCommandBuilder javaCommandBuilder, DockerCommandBuilder dockerCommandBuilder) {
-//			this.javaCommandBuilder = javaCommandBuilder;
-//			this.dockerCommandBuilder = dockerCommandBuilder;
-//		}
-//
-//		@Override
-//		public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args) {
-//			if (request.getResource() instanceof DockerResource) {
-//				return this.dockerCommandBuilder.buildExecutionCommand(request, args);
-//			}
-//			else {
-//				return this.javaCommandBuilder.buildExecutionCommand(request, args);
-//			}
-//		}
-//	}
 }
