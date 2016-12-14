@@ -17,24 +17,17 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.springframework.cglib.core.Local;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -150,11 +143,12 @@ public abstract class AbstractLocalDeployerSupport {
 				}
 			}
 		}
-		catch (ResourceAccessException e) {
-			// ignore I/O errors
-		}
 		catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
+		}
+		catch (Exception e) {
+			// ignore all other errors as we're going to
+			// destroy process if it's alive
 		}
 		finally {
 			if (isAlive(instance.getProcess())) {

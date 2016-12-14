@@ -63,6 +63,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
+	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
+
 	private static final int DEFAULT_SERVER_PORT = 8080;
 
 	private final Map<String, List<AppInstance>> running = new ConcurrentHashMap<>();
@@ -97,7 +99,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		HashMap<String, String> args = new HashMap<>();
 		args.putAll(request.getDefinition().getProperties());
 		args.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
-		args.put("endpoints.shutdown.enabled", "true");
+		if (!request.getDefinition().getProperties().containsKey(ENDPOINTS_SHUTDOWN_ENABLED_KEY)) {
+			args.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
+		}
 		args.put("endpoints.jmx.unique-names", "true");
 		if (group != null) {
 			args.put("spring.cloud.application.group", group);
