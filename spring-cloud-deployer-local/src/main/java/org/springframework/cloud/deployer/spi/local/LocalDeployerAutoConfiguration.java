@@ -16,6 +16,7 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureOrder;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,16 +36,12 @@ import org.springframework.core.Ordered;
 @AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)
 public class LocalDeployerAutoConfiguration {
 
-	public static final String DEPLOYER = "Local";
-
-	@Bean(DEPLOYER + "AppDeployer")
-	@ConditionalOnMissingBean(AppDeployer.class)
+	@Bean("LocalAppDeployer")
 	public AppDeployer appDeployer(LocalDeployerProperties properties) {
 		return new LocalAppDeployer(properties);
 	}
 
-	@Bean(DEPLOYER + "TaskLauncher")
-	@ConditionalOnMissingBean(TaskLauncher.class)
+	@Bean("LocalTaskLauncher")
 	public TaskLauncher taskLauncher(LocalDeployerProperties properties) {
 		return new LocalTaskLauncher(properties);
 	}
