@@ -154,6 +154,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			}
 			running.remove(id);
 		}
+		else {
+			throw new IllegalStateException(String.format("App %s has not been deployed.", id));
+		}
 	}
 
 	@Override
