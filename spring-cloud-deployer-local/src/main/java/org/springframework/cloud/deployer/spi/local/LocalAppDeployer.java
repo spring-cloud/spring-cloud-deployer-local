@@ -40,6 +40,7 @@ import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.util.DeployerVersionUtils;
 import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 
@@ -170,6 +171,18 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 		AppStatus status = builder.build();
 		return status;
+	}
+
+	@Override
+	public Map<String, String> environmentInfo() {
+		Map<String, String> info = DeployerVersionUtils.getVersionInfoMap();
+		info.put("deployer-version", DeployerVersionUtils.getVersion(this.getClass()));
+		info.put("deployer-class-name", this.getClass().getSimpleName());
+		info.put("platform-type", System.getProperty("os.name"));
+		info.put("platform-client-version", System.getProperty("os.version"));
+		info.put("platform-host-version", System.getProperty("os.version"));
+		info.put("java-version", System.getProperty("java.version"));
+		return info;
 	}
 
 	@PreDestroy
