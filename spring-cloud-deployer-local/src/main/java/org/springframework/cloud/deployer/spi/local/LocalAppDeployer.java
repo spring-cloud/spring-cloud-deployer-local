@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,8 +38,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
+import org.springframework.cloud.deployer.spi.app.DeployerEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.util.DeployerVersionUtils;
 import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 
@@ -52,6 +54,7 @@ import org.springframework.util.StringUtils;
  * @author Ilayaperumal Gopinathan
  * @author Janne Valkealahti
  * @author Patrick Peralta
+ * @author Thomas Risberg
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
@@ -170,6 +173,16 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 		AppStatus status = builder.build();
 		return status;
+	}
+
+	@Override
+	public DeployerEnvironmentInfo environmentInfo() {
+		return new DeployerEnvironmentInfo.Builder()
+				.deployerImplementationVersion(DeployerVersionUtils.getVersion(this.getClass()))
+				.platformType(System.getProperty("os.name"))
+				.platformClientVersion(System.getProperty("os.version"))
+				.platformHostVersion(System.getProperty("os.version"))
+				.build();
 	}
 
 	@PreDestroy
