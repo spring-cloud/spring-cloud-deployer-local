@@ -16,15 +16,23 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.deployer.spi.core.AppDefinition;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalTaskLauncherIntegrationTests.Config;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.AbstractTaskLauncherIntegrationTests;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.Resource;
 
 /**
  * Integration tests for {@link LocalTaskLauncher}.
@@ -39,7 +47,7 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 	private TaskLauncher taskLauncher;
 
 	@Override
-	protected TaskLauncher taskLauncher() {
+	protected TaskLauncher provideTaskLauncher() {
 		return taskLauncher;
 	}
 
