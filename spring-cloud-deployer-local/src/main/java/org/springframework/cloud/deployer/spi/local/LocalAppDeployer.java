@@ -182,6 +182,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		info.put("platform-client-version", System.getProperty("os.version"));
 		info.put("platform-host-version", System.getProperty("os.version"));
 		info.put("java-version", System.getProperty("java.version"));
+		if (logger.isDebugEnabled()) {
+			logger.debug("Deployer environment info is: " + info);
+		}
 		return info;
 	}
 
