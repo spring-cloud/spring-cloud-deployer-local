@@ -1,5 +1,9 @@
 == Spring Cloud Local Deployer
 
+== WARNING: Spring Cloud Local Deployer is strictly only meant to be used for development. This 
+implementation is not recommended for production use because there’s no high availability, fault-tolerance, 
+or resiliency mechanics; hence, there are no reliable execution guarantees associated with it.
+
 === Building
 
 Build and skip all tests:
