@@ -178,8 +178,10 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	@Override
 	public DeployerEnvironmentInfo environmentInfo() {
 		return new DeployerEnvironmentInfo.Builder()
+				.deployerName(this.getClass().getSimpleName())
 				.deployerImplementationVersion(DeployerVersionUtils.getVersion(this.getClass()))
-				.platformType(System.getProperty("os.name"))
+				.platformType("Local")
+				.platformApiVersion(System.getProperty("os.name") + " " + System.getProperty("os.version"))
 				.platformClientVersion(System.getProperty("os.version"))
 				.platformHostVersion(System.getProperty("os.version"))
 				.build();
