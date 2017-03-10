@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
+import org.springframework.cloud.deployer.spi.app.DeployerEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.util.DeployerVersionUtils;
@@ -174,18 +175,13 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	}
 
 	@Override
-	public Map<String, String> environmentInfo() {
-		Map<String, String> info = DeployerVersionUtils.getVersionInfoMap();
-		info.put("deployer-version", DeployerVersionUtils.getVersion(this.getClass()));
-		info.put("deployer-class-name", this.getClass().getSimpleName());
-		info.put("platform-type", System.getProperty("os.name"));
-		info.put("platform-client-version", System.getProperty("os.version"));
-		info.put("platform-host-version", System.getProperty("os.version"));
-		info.put("java-version", System.getProperty("java.version"));
-		if (logger.isDebugEnabled()) {
-			logger.debug("Deployer environment info is: " + info);
-		}
-		return info;
+	public DeployerEnvironmentInfo environmentInfo() {
+		return new DeployerEnvironmentInfo.Builder()
+				.deployerImplementationVersion(DeployerVersionUtils.getVersion(this.getClass()))
+				.platformType(System.getProperty("os.name"))
+				.platformClientVersion(System.getProperty("os.version"))
+				.platformHostVersion(System.getProperty("os.version"))
+				.build();
 	}
 
 	@PreDestroy
