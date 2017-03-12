@@ -156,6 +156,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				}
 			}
 			running.remove(id);
+		} else {
+			throw new IllegalStateException("There is nothing to un-deploy for deployment id " + id);
 		}
 		else {
 			throw new IllegalStateException(String.format("App %s is not in a deployed state.", id));
