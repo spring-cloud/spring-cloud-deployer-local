@@ -52,6 +52,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private Path logPathRoot;
 
+	private int maxConcurrentApps = 0;
+
 	private static final Logger logger = LoggerFactory.getLogger(LocalTaskLauncher.class);
 
 	private static final String SERVER_PORT_KEY = "server.port";
@@ -69,6 +71,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	 */
 	public LocalTaskLauncher(LocalDeployerProperties properties) {
 		super(properties);
+		this.maxConcurrentApps = properties.getMaxConcurrentApps();
 	}
 
 	@Override
@@ -81,6 +84,9 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			catch (IOException e) {
 				throw new IllegalStateException(e);
 			}
+		}
+		if (maxConcurrentApps > 0 && running.size() >= maxConcurrentApps) {
+			throw new IllegalStateException(String.format("Launcher has reached it maximum allowed tasks"));
 		}
 		String taskLaunchId = request.getDefinition().getName() + "-" + UUID.randomUUID().toString();
 		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);

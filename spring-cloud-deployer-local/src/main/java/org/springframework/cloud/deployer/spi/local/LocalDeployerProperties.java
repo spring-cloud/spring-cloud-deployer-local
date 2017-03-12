@@ -42,6 +42,11 @@ public class LocalDeployerProperties {
 	private Path workingDirectoriesRoot = new File(System.getProperty("java.io.tmpdir")).toPath();
 
 	/**
+	 * Maximum number of concurrent Apps allowed to run , zero for infinity
+	 */
+	private int maxConcurrentApps = 0;
+
+	/**
 	 * Whether to delete created files and directories on JVM exit.
 	 */
 	private boolean deleteFilesOnExit = true;
@@ -83,6 +88,14 @@ public class LocalDeployerProperties {
 
 	public void setWorkingDirectoriesRoot(String workingDirectoriesRoot) {
 		this.workingDirectoriesRoot = new File(workingDirectoriesRoot).toPath();
+	}
+
+	public int getMaxConcurrentApps() {
+		return maxConcurrentApps;
+	}
+
+	public void setMaxConcurrentApps(int maxConcurrentApps) {
+		this.maxConcurrentApps = maxConcurrentApps;
 	}
 
 	public boolean isDeleteFilesOnExit() {
