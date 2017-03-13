@@ -38,10 +38,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
-import org.springframework.cloud.deployer.spi.app.DeployerEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
-import org.springframework.cloud.deployer.spi.util.DeployerVersionUtils;
+import org.springframework.cloud.deployer.spi.core.DeployerEnvironmentInfo;
 import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 
@@ -177,14 +176,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public DeployerEnvironmentInfo environmentInfo() {
-		return new DeployerEnvironmentInfo.Builder()
-				.deployerName(this.getClass().getSimpleName())
-				.deployerImplementationVersion(DeployerVersionUtils.getVersion(this.getClass()))
-				.platformType("Local")
-				.platformApiVersion(System.getProperty("os.name") + " " + System.getProperty("os.version"))
-				.platformClientVersion(System.getProperty("os.version"))
-				.platformHostVersion(System.getProperty("os.version"))
-				.build();
+		return super.environmentInfo();
 	}
 
 	@PreDestroy
