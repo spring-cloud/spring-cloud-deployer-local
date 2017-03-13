@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.deployer.spi.task.TaskStatus;
@@ -47,6 +48,7 @@ import org.springframework.util.SocketUtils;
  * @author Marius Bogoevici
  * @author Mark Fisher
  * @author Janne Valkealahti
+ * @author Thomas Risberg
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -147,6 +149,11 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	@Override
 	public void destroy(String appName) {
+	}
+
+	@Override
+	public RuntimeEnvironmentInfo environmentInfo() {
+		return super.createRuntimeEnvironmentInfo(TaskLauncher.class, this.getClass());
 	}
 
 	@PreDestroy

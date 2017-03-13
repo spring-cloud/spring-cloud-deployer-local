@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
+import org.springframework.cloud.deployer.spi.util.RuntimeVersionUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
@@ -37,6 +39,7 @@ import org.springframework.web.client.RestTemplate;
  * @author Janne Valkealahti
  * @author Mark Fisher
  * @author Ilayaperumal Gopinathan
+ * @author Thomas Risberg
  */
 public abstract class AbstractLocalDeployerSupport {
 
@@ -60,6 +63,23 @@ public abstract class AbstractLocalDeployerSupport {
 		this.properties = properties;
 		this.javaCommandBuilder = new JavaCommandBuilder(properties);
 		this.dockerCommandBuilder = new DockerCommandBuilder();
+	}
+
+	/**
+	 * Create the RuntimeEnvironmentInfo.
+	 *
+	 * @return the local runtime environment info
+	 */
+	protected RuntimeEnvironmentInfo createRuntimeEnvironmentInfo(Class spiClass, Class implementationClass) {
+		return new RuntimeEnvironmentInfo.Builder()
+				.spiClass(spiClass)
+				.implementationName(implementationClass.getSimpleName())
+				.implementationVersion(RuntimeVersionUtils.getVersion(implementationClass))
+				.platformType("Local")
+				.platformApiVersion(System.getProperty("os.name") + " " + System.getProperty("os.version"))
+				.platformClientVersion(System.getProperty("os.version"))
+				.platformHostVersion(System.getProperty("os.version"))
+				.build();
 	}
 
 	/**
