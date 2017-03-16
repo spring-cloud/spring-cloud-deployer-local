@@ -71,7 +71,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 
 		log.info("Deploying {}...", request.getDefinition().getName());
 
-		String deploymentId = provideAppDeployer().deploy(request);
+		String deploymentId = appDeployer().deploy(request);
 		Timeout timeout = deploymentTimeout();
 		assertThat(deploymentId, eventually(hasStatusThat(
 				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
@@ -79,7 +79,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		log.info("Undeploying {}...", deploymentId);
 
 		timeout = undeploymentTimeout();
-		provideAppDeployer().undeploy(deploymentId);
+		appDeployer().undeploy(deploymentId);
 		assertThat(deploymentId, eventually(hasStatusThat(
 				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
 	}
