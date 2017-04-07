@@ -18,6 +18,7 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.URL;
@@ -100,6 +101,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 		HashMap<String, String> args = new HashMap<>();
 		args.putAll(request.getDefinition().getProperties());
+
 		args.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
 		if (!request.getDefinition().getProperties().containsKey(ENDPOINTS_SHUTDOWN_ENABLED_KEY)) {
 			args.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
@@ -128,6 +130,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
+				args.put("spring.cloud.stream.metrics.key", deploymentId + ".${spring.application.index}");
 				ProcessBuilder builder = buildProcessBuilder(request, args);
 				AppInstance instance = new AppInstance(deploymentId, i, builder, workDir, port);
 				processes.add(instance);
@@ -202,9 +205,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private final URL baseUrl;
 
+		private final int port;
+
+		private int pid;
+
 		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, Path workDir, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
+			this.port = port;
 			builder.directory(workDir.toFile());
 			String workDirPath = workDir.toFile().getAbsolutePath();
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
@@ -212,10 +220,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			builder.redirectOutput(this.stdout);
 			builder.redirectError(this.stderr);
 			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
-			builder.environment().put("spring.application.index", Integer.toString(instanceNumber));
+			builder.environment().put("spring.application.index", Integer.toString(port));
+			builder.environment().put("spring.cloud.application.guid", Integer.toString(port));
 			this.process = builder.start();
 			this.workDir = workDir.toFile();
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
+			this.pid = getLocalProcessPid(process);
 		}
 
 		@Override
@@ -266,6 +276,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			result.put("working.dir", workDir.getAbsolutePath());
 			result.put("stdout", stdout.getAbsolutePath());
 			result.put("stderr", stderr.getAbsolutePath());
+			result.put("port", Integer.toString(port));
+			result.put("guid", Integer.toString(port));
+			if (pid > 0) {
+				// add pid if we got it
+				result.put("pid", Integer.toString(pid));
+			}
 			result.put("url", baseUrl.toString());
 			return result;
 		}
@@ -286,4 +302,28 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			return null;
 		}
 	}
+
+	/**
+	 * Gets the local process pid if available. This should be a safe workaround
+	 * for unix systems where reflection can be used to get pid. More reliable
+	 * way should land with jdk9.
+	 *
+	 * @param p the process
+	 * @return the local process pid
+	 */
+	private static synchronized int getLocalProcessPid(Process p) {
+		int pid = 0;
+		try {
+			if (p.getClass().getName().equals("java.lang.UNIXProcess")) {
+				Field f = p.getClass().getDeclaredField("pid");
+				f.setAccessible(true);
+				pid = f.getInt(p);
+				f.setAccessible(false);
+			}
+		} catch (Exception e) {
+			pid = 0;
+		}
+		return pid;
+	}
+
 }
