@@ -130,7 +130,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
-				args.put("spring.cloud.stream.metrics.key", deploymentId + ".${spring.application.index}");
+				args.put("spring.cloud.stream.metrics.key", deploymentId + "." + port);
 				ProcessBuilder builder = buildProcessBuilder(request, args);
 				AppInstance instance = new AppInstance(deploymentId, i, builder, workDir, port);
 				processes.add(instance);
@@ -209,6 +209,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private int pid;
 
+		private HashMap<String, String> result = new HashMap<>();
+
 		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, Path workDir, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
@@ -220,8 +222,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			builder.redirectOutput(this.stdout);
 			builder.redirectError(this.stderr);
 			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
-			builder.environment().put("spring.application.index", Integer.toString(port));
-			builder.environment().put("spring.cloud.application.guid", Integer.toString(port));
+			builder.environment().put("spring.application.index", Integer.toString(instanceNumber));
+			//only prefix with deployment ID until metrics collector would report metrics key
+			builder.environment().put("spring.cloud.application.guid", deploymentId + "." + Integer.toString(port));
 			this.process = builder.start();
 			this.workDir = workDir.toFile();
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
@@ -272,12 +275,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 
 		public Map<String, String> getAttributes() {
-			HashMap<String, String> result = new HashMap<>();
 			result.put("working.dir", workDir.getAbsolutePath());
 			result.put("stdout", stdout.getAbsolutePath());
 			result.put("stderr", stderr.getAbsolutePath());
 			result.put("port", Integer.toString(port));
 			result.put("guid", Integer.toString(port));
+			result.put("trackingKey", deploymentId + "." + port);
 			if (pid > 0) {
 				// add pid if we got it
 				result.put("pid", Integer.toString(pid));
