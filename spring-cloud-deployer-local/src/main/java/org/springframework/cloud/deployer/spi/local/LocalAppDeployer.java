@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PreDestroy;
@@ -130,7 +131,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
-				args.put("spring.cloud.stream.metrics.key", deploymentId + "." + port);
 				ProcessBuilder builder = buildProcessBuilder(request, args);
 				AppInstance instance = new AppInstance(deploymentId, i, builder, workDir, port);
 				processes.add(instance);
@@ -197,7 +197,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private final Process process;
 
-		private final File workDir;
+		private final File workFile;
 
 		private final File stdout;
 
@@ -209,7 +209,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private int pid;
 
-		private HashMap<String, String> result = new HashMap<>();
+		private Map<String, String> result = new TreeMap<>();
 
 		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, Path workDir, int port) throws IOException {
 			this.deploymentId = deploymentId;
@@ -222,11 +222,10 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			builder.redirectOutput(this.stdout);
 			builder.redirectError(this.stderr);
 			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
-			builder.environment().put("spring.application.index", Integer.toString(instanceNumber));
-			//only prefix with deployment ID until metrics collector would report metrics key
-			builder.environment().put("spring.cloud.application.guid", deploymentId + "." + Integer.toString(port));
+			builder.environment().put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
+			builder.environment().put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
 			this.process = builder.start();
-			this.workDir = workDir.toFile();
+			this.workFile = workDir.toFile();
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 			this.pid = getLocalProcessPid(process);
 		}
@@ -275,12 +274,11 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 
 		public Map<String, String> getAttributes() {
-			result.put("working.dir", workDir.getAbsolutePath());
+			result.put("working.dir", workFile.getAbsolutePath());
 			result.put("stdout", stdout.getAbsolutePath());
 			result.put("stderr", stderr.getAbsolutePath());
 			result.put("port", Integer.toString(port));
 			result.put("guid", Integer.toString(port));
-			result.put("trackingKey", deploymentId + "." + port);
 			if (pid > 0) {
 				// add pid if we got it
 				result.put("pid", Integer.toString(pid));
