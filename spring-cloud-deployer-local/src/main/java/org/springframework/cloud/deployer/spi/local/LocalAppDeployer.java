@@ -138,7 +138,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 					instance.stdout.deleteOnExit();
 					instance.stderr.deleteOnExit();
 				}
-				logger.info("deploying app {} instance {}\n   Logs will be in {}", deploymentId, i, workDir);
+				logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId, i, workDir);
 			}
 		}
 		catch (IOException e) {
@@ -153,14 +153,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		if (processes != null) {
 			for (AppInstance instance : processes) {
 				if (isAlive(instance.getProcess())) {
-					logger.info("un-deploying app {} instance {}", id, instance.getInstanceNumber());
+					logger.info("Un-deploying app with deploymentId {} instance {}.", id, instance.getInstanceNumber());
 					shutdownAndWait(instance);
 				}
 			}
 			running.remove(id);
 		}
 		else {
-			throw new IllegalStateException(String.format("App %s is not in a deployed state.", id));
+			throw new IllegalStateException(String.format("App with deploymentId %s is not in a deployed state.", id));
 		}
 	}
 
