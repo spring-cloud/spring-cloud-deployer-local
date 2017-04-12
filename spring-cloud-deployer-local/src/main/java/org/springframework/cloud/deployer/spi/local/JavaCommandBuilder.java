@@ -109,7 +109,6 @@ public class JavaCommandBuilder implements CommandBuilder {
 			commands.add("-jar");
 			Resource resource = request.getResource();
 			try {
-				logger.info("Downloading resource " + resource.toString());
 				commands.add(resource.getFile().getAbsolutePath());
 			}
 			catch (IOException e) {
