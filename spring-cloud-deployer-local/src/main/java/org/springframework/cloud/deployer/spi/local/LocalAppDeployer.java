@@ -94,7 +94,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
 		DeploymentState state = status(deploymentId).getState();
 		if (state != DeploymentState.unknown) {
-			throw new IllegalStateException(String.format("App %s is already deployed with state %s",
+			throw new IllegalStateException(String.format("App with deploymentId [%s] is already deployed with state [%s]",
 					deploymentId, state));
 		}
 		List<AppInstance> processes = new ArrayList<>();
