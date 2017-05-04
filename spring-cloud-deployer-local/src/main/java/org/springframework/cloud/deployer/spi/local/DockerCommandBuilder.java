@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
+import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 
 /**
@@ -32,7 +33,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
  */
 public class DockerCommandBuilder implements CommandBuilder {
 
-	private static final String DOCKER_CONTAINER_NAME_KEY = "docker.container.name";
+	private static final String DOCKER_CONTAINER_NAME_KEY = AppDeployer.PREFIX + "docker.container.name";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
