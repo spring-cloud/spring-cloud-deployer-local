@@ -19,11 +19,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
+import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 
 /**
@@ -31,16 +33,18 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
  */
 public class DockerCommandBuilder implements CommandBuilder {
 
+	private static final String DOCKER_CONTAINER_NAME_KEY = AppDeployer.PREFIX + "docker.container.name";
+
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args) {
-		List<String> commands = addDockerOptions(request, args);
+	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
+		List<String> commands = addDockerOptions(request, args, appInstanceNumber);
 		logger.debug("Docker Command = " + commands);
 		return commands.toArray(new String[0]);
 	}
 
-	private List<String> addDockerOptions(AppDeploymentRequest request, Map<String, String> args) {
+	private List<String> addDockerOptions(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
 		List<String> commands = new ArrayList<>();
 		commands.add("docker");
 		commands.add("run");
@@ -53,6 +57,13 @@ public class DockerCommandBuilder implements CommandBuilder {
 			else {
 				commands.add("-e");
 				commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+			}
+		}
+		if(request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
+			if(appInstanceNumber.isPresent()) {
+				commands.add(String.format("--name=%s-%d", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY), appInstanceNumber.get()));
+			} else {
+				commands.add(String.format("--name=%s", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY)));
 			}
 		}
 		try {

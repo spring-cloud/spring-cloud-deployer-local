@@ -16,6 +16,7 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 
@@ -33,5 +34,5 @@ public interface CommandBuilder {
 	 * @param args the properties to use when building the execution command
 	 * @return the build command as a string array
 	 */
-	String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args);
+	String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber);
 }
