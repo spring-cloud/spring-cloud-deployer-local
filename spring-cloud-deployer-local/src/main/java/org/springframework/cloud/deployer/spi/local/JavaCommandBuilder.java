@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ public class JavaCommandBuilder implements CommandBuilder {
 	}
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args) {
+	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
 		ArrayList<String> commands = new ArrayList<String>();
 		Map<String, String> deploymentProperties = request.getDeploymentProperties();
 		commands.add(properties.getJavaCmd());

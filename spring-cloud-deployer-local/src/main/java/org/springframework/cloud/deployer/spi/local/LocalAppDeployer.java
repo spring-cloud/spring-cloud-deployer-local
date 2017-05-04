@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -131,7 +132,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
-				ProcessBuilder builder = buildProcessBuilder(request, args);
+				ProcessBuilder builder = buildProcessBuilder(request, args, Optional.of(i));
 				AppInstance instance = new AppInstance(deploymentId, i, builder, workDir, port);
 				processes.add(instance);
 				if (getLocalDeployerProperties().isDeleteFilesOnExit()) {

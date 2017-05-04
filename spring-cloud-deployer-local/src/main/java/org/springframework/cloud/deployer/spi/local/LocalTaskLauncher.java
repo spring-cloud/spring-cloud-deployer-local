@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -108,7 +109,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			if (useDynamicPort) {
 				args.put(SERVER_PORT_KEY, String.valueOf(port));
 			}
-			ProcessBuilder builder = buildProcessBuilder(request, args);
+			ProcessBuilder builder = buildProcessBuilder(request, args, Optional.empty());
 			TaskInstance instance = new TaskInstance(builder, workDir, port);
 			running.put(taskLaunchId, instance);
 			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
