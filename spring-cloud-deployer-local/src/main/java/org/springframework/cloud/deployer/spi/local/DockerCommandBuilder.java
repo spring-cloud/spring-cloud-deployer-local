@@ -53,16 +53,17 @@ public class DockerCommandBuilder implements CommandBuilder {
 			if (entry.getKey().equals(LocalAppDeployer.SERVER_PORT_KEY)) {
 				commands.add("-p");
 				commands.add(String.format("%s:8080", args.get(entry.getKey())));
-			} else if (entry.getKey().equals(DOCKER_CONTAINER_NAME_KEY)) {
-				if(appInstanceNumber.isPresent()) {
-					commands.add(String.format("--name=%s-%d", entry.getValue(), appInstanceNumber.get()));
-				} else {
-					commands.add(String.format("--name=%s", args.get(entry.getValue())));
-				}
 			}
 			else {
 				commands.add("-e");
 				commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
+			}
+		}
+		if(request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
+			if(appInstanceNumber.isPresent()) {
+				commands.add(String.format("--name=%s-%d", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY), appInstanceNumber.get()));
+			} else {
+				commands.add(String.format("--name=%s", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY)));
 			}
 		}
 		try {
