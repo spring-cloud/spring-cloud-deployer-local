@@ -19,6 +19,7 @@ package org.springframework.cloud.deployer.spi.local;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -123,15 +124,15 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @param args the args
 	 * @return the process builder
 	 */
-	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> args) {
+	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		Assert.notNull(args, "Args must be set");
 		String[] commands = null;
 		if (request.getResource() instanceof DockerResource) {
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request, args);
+			commands = this.dockerCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
 		}
 		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request, args);
+			commands = this.javaCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
 		}
 		ProcessBuilder builder = new ProcessBuilder(commands);
 		retainEnvVars(builder.environment().keySet());
