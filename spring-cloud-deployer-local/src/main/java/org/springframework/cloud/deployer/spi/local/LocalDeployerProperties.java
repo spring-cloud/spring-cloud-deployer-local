@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2016 the original author or authors.
+ * Copyright 2015-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,11 @@ package org.springframework.cloud.deployer.spi.local;
 import java.io.File;
 import java.nio.file.Path;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.core.style.ToStringCreator;
+import org.springframework.util.Assert;
 
 /**
  * Configuration properties for the local deployer.
@@ -27,9 +31,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Eric Bottard
  * @author Mark Fisher
  * @author Ilayaperumal Gopinathan
+ * @author Oleg Zhurakousky
  */
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
+
+	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
+
+	private static final String JAVA_COMMAND = "java";
 
 	/**
 	 * Top level prefix for local deployer configuration properties.
@@ -119,15 +128,27 @@ public class LocalDeployerProperties {
 	}
 
 	private String deduceJavaCommand() {
+		String javaExecutablePath = JAVA_COMMAND;
 		String javaHome = System.getProperty("java.home");
-		if (javaHome == null) {
-			return "java"; // Hope it's in PATH
+		if (javaHome != null) {
+			File javaExecutable = new File(javaHome, "bin/" + javaExecutablePath);
+			Assert.isTrue(javaExecutable.canExecute(), "Java executable discovered via 'java.home' system property '"
+					+ javaHome + "' is not executable or does not exist.");
+			javaExecutablePath = javaExecutable.getAbsolutePath();
 		}
-		File javaExecutable = new File(javaHome, "bin/java");
-		if (javaExecutable.exists() && javaExecutable.canExecute()) {
-			return javaExecutable.getAbsolutePath();
+		else {
+			logger.warn("System property 'java.home' is not set. Defaulting to the java executable path as 'java' assuming it's in PATH.");
 		}
-		return "java";
+
+		return javaExecutablePath;
 	}
 
+	@Override
+	public String toString(){
+		return new ToStringCreator(this)
+				.append("workingDirectoriesRoot", this.workingDirectoriesRoot)
+				.append("javaOpts", this.javaOpts)
+				.append("envVarsToInherit", this.envVarsToInherit)
+				.toString();
+	}
 }
