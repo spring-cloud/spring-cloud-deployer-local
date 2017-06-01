@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.springframework.cloud.deployer.spi.local.LocalDeployerProperties;
 
 /**
  * @author Mark Fisher
+ * @author Oleg Zhurakousky
  */
 public class TickTock {
 
@@ -55,6 +56,13 @@ public class TickTock {
 				.build();
 		Map<String, String> properties = new HashMap<>();
 		properties.put("server.port", "0");
+		/*
+		 * This will allow output to be logged to the output of the process that started
+		 * the application.
+		 * While it is identified as one of the properties of LocalDeployer it could be set per
+		 * application for more targeted logging (as done here)
+		 */
+		properties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
 		if (app.contains("-source-")) {
 			properties.put("spring.cloud.stream.bindings.output.destination", stream);
 		}

@@ -18,6 +18,7 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.Inet4Address;
@@ -57,6 +58,7 @@ import org.springframework.util.StringUtils;
  * @author Janne Valkealahti
  * @author Patrick Peralta
  * @author Thomas Risberg
+ * @author Oleg Zhurakousky
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
@@ -133,13 +135,16 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
 				ProcessBuilder builder = buildProcessBuilder(request, args, Optional.of(i));
-				AppInstance instance = new AppInstance(deploymentId, i, builder, workDir, port);
-				processes.add(instance);
-				if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
-					instance.stdout.deleteOnExit();
-					instance.stderr.deleteOnExit();
+				AppInstance instance = new AppInstance(deploymentId, i, builder, port);
+				if (this.shouldInheritLogging(request)){
+					instance.start(builder);
+					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
 				}
-				logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId, i, workDir);
+				else {
+					instance.start(builder, workDir, getLocalDeployerProperties().isDeleteFilesOnExit());
+					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId, i, workDir);
+				}
+				processes.add(instance);
 			}
 		}
 		catch (IOException e) {
@@ -190,19 +195,26 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
+	/**
+	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by
+	 * checking deployment properties and then application properties
+	 */
+	private boolean shouldInheritLogging(AppDeploymentRequest request){
+		boolean logToConsole = false;
+		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
+			logToConsole = Boolean.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
+		}
+		else if (request.getDefinition().getProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
+			logToConsole = Boolean.parseBoolean(request.getDefinition().getProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
+		}
+		return logToConsole;
+	}
+
 	private static class AppInstance implements Instance, AppInstanceStatus {
 
 		private final String deploymentId;
 
 		private final int instanceNumber;
-
-		private final Process process;
-
-		private final File workFile;
-
-		private final File stdout;
-
-		private final File stderr;
 
 		private final URL baseUrl;
 
@@ -210,25 +222,24 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private int pid;
 
+		private Process process;
+
+		private File workFile;
+
+		private File stdout;
+
+		private File stderr;
+
 		private Map<String, String> result = new TreeMap<>();
 
-		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, Path workDir, int port) throws IOException {
+		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
 			this.port = port;
-			builder.directory(workDir.toFile());
-			String workDirPath = workDir.toFile().getAbsolutePath();
-			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
-			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr_" + instanceNumber + ".log")).toFile();
-			builder.redirectOutput(this.stdout);
-			builder.redirectError(this.stderr);
+			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
 			builder.environment().put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
 			builder.environment().put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
-			this.process = builder.start();
-			this.workFile = workDir.toFile();
-			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
-			this.pid = getLocalProcessPid(process);
 		}
 
 		@Override
@@ -274,10 +285,13 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			return instanceNumber;
 		}
 
+		@Override
 		public Map<String, String> getAttributes() {
-			result.put("working.dir", workFile.getAbsolutePath());
-			result.put("stdout", stdout.getAbsolutePath());
-			result.put("stderr", stderr.getAbsolutePath());
+			if (workFile != null){
+				result.put("working.dir", workFile.getAbsolutePath());
+				result.put("stdout", stdout.getAbsolutePath());
+				result.put("stderr", stderr.getAbsolutePath());
+			}
 			result.put("port", Integer.toString(port));
 			result.put("guid", Integer.toString(port));
 			if (pid > 0) {
@@ -286,6 +300,34 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			}
 			result.put("url", baseUrl.toString());
 			return result;
+		}
+
+		/**
+		 * Will start the process while redirecting 'out' and 'err' streams
+		 * to the 'out' and 'err' streams of this process.
+		 */
+		private void start(ProcessBuilder builder) throws IOException {
+			if (this.stdout == null) {
+				builder.redirectOutput(Redirect.INHERIT);
+				builder.redirectError(Redirect.INHERIT);
+			}
+			this.process = builder.start();
+		    this.pid = getLocalProcessPid(this.process);
+		}
+
+		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
+			builder.directory(workDir.toFile());
+			String workDirPath = workDir.toFile().getAbsolutePath();
+			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
+			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr_" + instanceNumber + ".log")).toFile();
+			builder.redirectOutput(this.stdout);
+			builder.redirectError(this.stderr);
+			if (deleteOnExist) {
+				this.stdout.deleteOnExit();
+				this.stderr.deleteOnExit();
+			}
+			this.workFile = workDir.toFile();
+			this.start(builder);
 		}
 	}
 

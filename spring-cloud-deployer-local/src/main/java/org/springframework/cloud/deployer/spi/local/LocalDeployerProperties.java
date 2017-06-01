@@ -36,6 +36,8 @@ import org.springframework.util.Assert;
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
 
+	public static String INHERIT_LOGGING = "inheritLogging";
+
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
 	private static final String JAVA_COMMAND = "java";
