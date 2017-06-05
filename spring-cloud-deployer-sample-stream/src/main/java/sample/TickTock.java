@@ -16,7 +16,6 @@
 
 package sample;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,13 +55,6 @@ public class TickTock {
 				.build();
 		Map<String, String> properties = new HashMap<>();
 		properties.put("server.port", "0");
-		/*
-		 * This will allow output to be logged to the output of the process that started
-		 * the application.
-		 * While it is identified as one of the properties of LocalDeployer it could be set per
-		 * application for more targeted logging (as done here)
-		 */
-		properties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
 		if (app.contains("-source-")) {
 			properties.put("spring.cloud.stream.bindings.output.destination", stream);
 		}
@@ -71,8 +63,16 @@ public class TickTock {
 			properties.put("spring.cloud.stream.bindings.input.group", "default");
 		}
 		AppDefinition definition = new AppDefinition(app, properties);
-		Map<String, String> environmentProperties = Collections.singletonMap(AppDeployer.GROUP_PROPERTY_KEY, stream);
-		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, environmentProperties);
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(AppDeployer.GROUP_PROPERTY_KEY, stream);
+		/*
+		 * This will allow output to be logged to the output of the process that started
+		 * the application.
+		 * Could be set per the entire deployment (i.e., 'deployer.inheritLogging=true') or per
+	     * individual application (i.e., deployer.my-app.inheritLogging=true).
+		 */
+		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
 		return request;
 	}
 }

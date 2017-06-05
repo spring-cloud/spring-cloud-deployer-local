@@ -197,17 +197,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	/**
 	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by
-	 * checking deployment properties and then application properties
+	 * checking deployment properties.
 	 */
 	private boolean shouldInheritLogging(AppDeploymentRequest request){
-		boolean logToConsole = false;
+		boolean inheritLogging = false;
 		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
-			logToConsole = Boolean.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
+			inheritLogging = Boolean.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
 		}
-		else if (request.getDefinition().getProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
-			logToConsole = Boolean.parseBoolean(request.getDefinition().getProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
-		}
-		return logToConsole;
+		return inheritLogging;
 	}
 
 	private static class AppInstance implements Instance, AppInstanceStatus {

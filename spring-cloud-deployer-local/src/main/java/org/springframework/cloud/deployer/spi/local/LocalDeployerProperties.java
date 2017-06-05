@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.core.style.ToStringCreator;
 import org.springframework.util.Assert;
 
@@ -36,7 +37,13 @@ import org.springframework.util.Assert;
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
 
-	public static String INHERIT_LOGGING = "inheritLogging";
+	/**
+	 * Allows logging to be redirected to the output stream of the process that
+	 * triggered child process.
+	 * Could be set per the entire deployment (i.e., <i>deployer.inheritLogging=true</i>) or per
+	 * individual application (i.e., <i>deployer.&lt;app-name&gt;.inheritLogging=true</i>).
+	 */
+	public static String INHERIT_LOGGING = AppDeployer.PREFIX + "inheritLogging";
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
