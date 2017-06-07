@@ -40,7 +40,7 @@ public class LocalDeployerProperties {
 	/**
 	 * Allows logging to be redirected to the output stream of the process that
 	 * triggered child process.
-	 * Could be set per the entire deployment (i.e., <i>deployer.inheritLogging=true</i>) or per
+	 * Could be set per the entire deployment (i.e., <i>deployer.*.inheritLogging=true</i>) or per
 	 * individual application (i.e., <i>deployer.&lt;app-name&gt;.inheritLogging=true</i>).
 	 */
 	public static String INHERIT_LOGGING = AppDeployer.PREFIX + "inheritLogging";

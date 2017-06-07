@@ -134,10 +134,11 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
-				ProcessBuilder builder = buildProcessBuilder(request, args, Optional.of(i));
+				ProcessBuilder builder = buildProcessBuilder(request, args, Optional.of(i)).inheritIO();
+				builder.directory(workDir.toFile());
 				AppInstance instance = new AppInstance(deploymentId, i, builder, port);
 				if (this.shouldInheritLogging(request)){
-					instance.start(builder);
+					instance.start(builder, workDir);
 					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
 				}
 				else {
@@ -303,28 +304,24 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		 * Will start the process while redirecting 'out' and 'err' streams
 		 * to the 'out' and 'err' streams of this process.
 		 */
-		private void start(ProcessBuilder builder) throws IOException {
-			if (this.stdout == null) {
-				builder.redirectOutput(Redirect.INHERIT);
-				builder.redirectError(Redirect.INHERIT);
-			}
+		private void start(ProcessBuilder builder, Path workDir) throws IOException {
+			this.workFile = workDir.toFile();
 			this.process = builder.start();
 		    this.pid = getLocalProcessPid(this.process);
 		}
 
 		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
-			builder.directory(workDir.toFile());
 			String workDirPath = workDir.toFile().getAbsolutePath();
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
 			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr_" + instanceNumber + ".log")).toFile();
-			builder.redirectOutput(this.stdout);
-			builder.redirectError(this.stderr);
 			if (deleteOnExist) {
 				this.stdout.deleteOnExit();
 				this.stderr.deleteOnExit();
 			}
-			this.workFile = workDir.toFile();
-			this.start(builder);
+			builder.redirectOutput(Redirect.to(this.stdout));
+			builder.redirectError(Redirect.to(this.stderr));
+
+			this.start(builder, workDir);
 		}
 	}
 

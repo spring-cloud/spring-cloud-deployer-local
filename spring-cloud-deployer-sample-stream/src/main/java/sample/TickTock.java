@@ -68,7 +68,7 @@ public class TickTock {
 		/*
 		 * This will allow output to be logged to the output of the process that started
 		 * the application.
-		 * Could be set per the entire deployment (i.e., 'deployer.inheritLogging=true') or per
+		 * Could be set per the entire deployment (i.e., 'deployer.*.inheritLogging=true') or per
 	     * individual application (i.e., deployer.my-app.inheritLogging=true).
 		 */
 		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
