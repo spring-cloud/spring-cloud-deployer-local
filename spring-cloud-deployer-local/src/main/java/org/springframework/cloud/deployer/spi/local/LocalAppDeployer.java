@@ -216,8 +216,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private final URL baseUrl;
 
-		private final int port;
-
 		private int pid;
 
 		private Process process;
@@ -228,13 +226,15 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private File stderr;
 
-		private Map<String, String> result = new TreeMap<>();
+		private final Map<String, String> result = new TreeMap<>();
 
 		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
-			this.port = port;
+			result.put("port", Integer.toString(port));
+			result.put("guid", Integer.toString(port));
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
+			result.put("url", baseUrl.toString());
 			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
 			builder.environment().put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
 			builder.environment().put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
@@ -285,19 +285,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		@Override
 		public Map<String, String> getAttributes() {
-			if (workFile != null){
-				result.put("working.dir", workFile.getAbsolutePath());
-				result.put("stdout", stdout.getAbsolutePath());
-				result.put("stderr", stderr.getAbsolutePath());
-			}
-			result.put("port", Integer.toString(port));
-			result.put("guid", Integer.toString(port));
-			if (pid > 0) {
-				// add pid if we got it
-				result.put("pid", Integer.toString(pid));
-			}
-			result.put("url", baseUrl.toString());
-			return result;
+			return this.result;
 		}
 
 		/**
@@ -306,14 +294,24 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		 */
 		private void start(ProcessBuilder builder, Path workDir) throws IOException {
 			this.workFile = workDir.toFile();
+			this.result.put("working.dir", this.workFile.getAbsolutePath());
 			this.process = builder.start();
 		    this.pid = getLocalProcessPid(this.process);
+		    if (pid > 0) {
+				// add pid if we got it
+				result.put("pid", Integer.toString(pid));
+			}
 		}
 
 		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
 			String workDirPath = workDir.toFile().getAbsolutePath();
+
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
+			this.result.put("stdout", stdout.getAbsolutePath());
+
 			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr_" + instanceNumber + ".log")).toFile();
+			this.result.put("stderr", stderr.getAbsolutePath());
+
 			if (deleteOnExist) {
 				this.stdout.deleteOnExit();
 				this.stderr.deleteOnExit();
