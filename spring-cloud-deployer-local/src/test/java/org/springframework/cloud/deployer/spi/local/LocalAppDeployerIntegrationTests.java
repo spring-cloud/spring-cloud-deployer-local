@@ -17,13 +17,17 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.springframework.cloud.deployer.spi.app.DeploymentState.deployed;
 import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown;
 import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -31,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
+import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
@@ -47,6 +52,7 @@ import org.springframework.core.io.Resource;
  *
  * @author Eric Bottard
  * @author Mark Fisher
+ * @author Oleg Zhurakousky
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
@@ -82,6 +88,26 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		appDeployer().undeploy(deploymentId);
 		assertThat(deploymentId, eventually(hasStatusThat(
 				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+	}
+
+	@Test
+	// was triggered by GH-50 and subsequently GH-55
+	public void testNoStdoutStderrOnInheritLoggingAndNoNPEOnGetAttributes() {
+		Map<String, String> properties = new HashMap<>();
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, Collections.singletonMap(LocalDeployerProperties.INHERIT_LOGGING, "true"));
+
+		AppDeployer deployer = appDeployer();
+		String deploymentId = deployer.deploy(request);
+		AppStatus appStatus = deployer.status(deploymentId);
+		assertTrue(appStatus.getInstances().size() > 0);
+		for (Entry<String, AppInstanceStatus> instanceStatusEntry : appStatus.getInstances().entrySet()) {
+			Map<String, String> attributes = instanceStatusEntry.getValue().getAttributes();
+			assertFalse(attributes.containsKey("stdout"));
+			assertFalse(attributes.containsKey("stderr"));
+		}
+		deployer.undeploy(deploymentId);
 	}
 
 	@Configuration
