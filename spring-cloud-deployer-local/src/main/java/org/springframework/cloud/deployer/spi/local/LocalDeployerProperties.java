@@ -51,7 +51,7 @@ public class LocalDeployerProperties {
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
-	private static final String JAVA_COMMAND = "java";
+	private static final String JAVA_COMMAND = isWindows() ? "java.exe" : "java";
 
 	/**
 	 * Directory in which all created processes will run and create log files.
@@ -139,16 +139,32 @@ public class LocalDeployerProperties {
 		String javaExecutablePath = JAVA_COMMAND;
 		String javaHome = System.getProperty("java.home");
 		if (javaHome != null) {
-			File javaExecutable = new File(javaHome, "bin/" + javaExecutablePath);
-			Assert.isTrue(javaExecutable.canExecute(), "Java executable discovered via 'java.home' system property '"
-					+ javaHome + "' is not executable or does not exist.");
+			File javaExecutable = new File(javaHome, "bin" + File.separator + javaExecutablePath);
+			Assert.isTrue(javaExecutable.canExecute(),
+					"Java executable'" + javaExecutable + "'discovered via 'java.home' system property '" + javaHome
+							+ "' is not executable or does not exist.");
 			javaExecutablePath = javaExecutable.getAbsolutePath();
 		}
 		else {
-			logger.warn("System property 'java.home' is not set. Defaulting to the java executable path as 'java' assuming it's in PATH.");
+			logger.warn("System property 'java.home' is not set. Defaulting to the java executable path as "
+					+ JAVA_COMMAND + " assuming it's in PATH.");
 		}
 
 		return javaExecutablePath;
+	}
+
+	private static boolean isWindows() {
+		String osName = null;
+		try {
+			osName = System.getProperty("os.name");
+		} catch (Exception e) {
+		}
+		if (osName == null) {
+			return false;
+		}
+		else {
+			return osName.toLowerCase().startsWith("windows");
+		}
 	}
 
 	@Override
