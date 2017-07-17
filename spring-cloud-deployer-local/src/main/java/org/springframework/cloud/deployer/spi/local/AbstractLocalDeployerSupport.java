@@ -121,18 +121,20 @@ public abstract class AbstractLocalDeployerSupport {
 	 * Builds the process builder.
 	 *
 	 * @param request the request
-	 * @param args the args
+	 * @param appInstanceEnv the instance environment variables
+	 * @param appProperties the app properties
 	 * @return the process builder
 	 */
-	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
+	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+												 Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
-		Assert.notNull(args, "Args must be set");
+		Assert.notNull(appProperties, "Args must be set");
 		String[] commands = null;
 		if (request.getResource() instanceof DockerResource) {
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
+			commands = this.dockerCommandBuilder.buildExecutionCommand(request, appInstanceEnv, appProperties, appInstanceNumber);
 		}
 		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
+			commands = this.javaCommandBuilder.buildExecutionCommand(request, appInstanceEnv, appProperties, appInstanceNumber);
 		}
 
 		// tweak escaping double quotes needed for windows
@@ -143,8 +145,10 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		ProcessBuilder builder = new ProcessBuilder(commands);
+		if (!(request.getResource() instanceof DockerResource)) {
+			builder.environment().putAll(appInstanceEnv);
+		}
 		retainEnvVars(builder.environment().keySet());
-		builder.environment().putAll(args);
 		return builder;
 	}
 

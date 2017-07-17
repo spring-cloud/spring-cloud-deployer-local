@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,10 @@ import java.util.Map.Entry;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
@@ -50,6 +52,10 @@ import org.springframework.core.io.Resource;
 /**
  * Integration tests for {@link LocalAppDeployer}.
  *
+ * Now supports running with Docker images for tests, just set this env var:
+ *
+ *   SPRING_CLOUD_DEPLOYER_SPI_TEST_USE_DOCKER=true
+ *
  * @author Eric Bottard
  * @author Mark Fisher
  * @author Oleg Zhurakousky
@@ -61,9 +67,21 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	@Autowired
 	private AppDeployer appDeployer;
 
+	@Value("${spring-cloud-deployer-spi-test-use-docker:false}")
+	private boolean useDocker;
+
 	@Override
 	protected AppDeployer provideAppDeployer() {
 		return appDeployer;
+	}
+
+	@Override
+	protected Resource testApplication() {
+		if (useDocker) {
+			log.info("Using Docker image for tests");
+			return new DockerResource("springcloud/spring-cloud-deployer-spi-test-app:latest");
+		}
+		return super.testApplication();
 	}
 
 	@Test

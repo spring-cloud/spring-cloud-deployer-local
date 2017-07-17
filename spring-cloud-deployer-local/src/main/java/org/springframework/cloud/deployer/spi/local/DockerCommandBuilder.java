@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
  * @author Ilayaperumal Gopinathan
  * @author Eric Bottard
  * @author Henryk Konsek
+ * @author Thomas Risberg
  */
 public class DockerCommandBuilder implements CommandBuilder {
 
@@ -45,26 +46,32 @@ public class DockerCommandBuilder implements CommandBuilder {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
-		List<String> commands = addDockerOptions(request, args, appInstanceNumber);
+	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+										  Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
+		List<String> commands = addDockerOptions(request, appInstanceEnv, appProperties, appInstanceNumber);
+		// Add appProperties
+		for (String prop : appProperties.keySet()) {
+			commands.add(String.format("--%s=%s", prop, appProperties.get(prop)));
+		}
+		commands.addAll(request.getCommandlineArguments());
 		logger.debug("Docker Command = " + commands);
 		return commands.toArray(new String[0]);
 	}
 
-	private List<String> addDockerOptions(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
+	private List<String> addDockerOptions(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+										  Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
 		List<String> commands = new ArrayList<>();
 		commands.add("docker");
 		commands.add("run");
-		DockerResource dockerResource = (DockerResource) request.getResource();
-		for (Map.Entry<String, String> entry : args.entrySet()) {
-			if (entry.getKey().equals(LocalAppDeployer.SERVER_PORT_KEY)) {
-				commands.add("-p");
-				commands.add(String.format("%s:8080", args.get(entry.getKey())));
-			}
-			else {
-				commands.add("-e");
-				commands.add(String.format("%s=%s", entry.getKey(), entry.getValue()));
-			}
+		// Add env vars
+		for (String env : appInstanceEnv.keySet()) {
+			commands.add("-e");
+			commands.add(String.format("%s=%s", env, appInstanceEnv.get(env)));
+		}
+		if (appProperties.containsKey(LocalAppDeployer.SERVER_PORT_KEY)) {
+			String port = appProperties.get(LocalAppDeployer.SERVER_PORT_KEY);
+			commands.add("-p");
+			commands.add(String.format("%s:%s", port, port));
 		}
 		if(request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
 			if(appInstanceNumber.isPresent()) {
@@ -73,6 +80,7 @@ public class DockerCommandBuilder implements CommandBuilder {
 				commands.add(String.format("--name=%s", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY)));
 			}
 		}
+		DockerResource dockerResource = (DockerResource) request.getResource();
 		try {
 			String dockerImageURI = dockerResource.getURI().toString();
 			commands.add(dockerImageURI.substring("docker:".length()));
