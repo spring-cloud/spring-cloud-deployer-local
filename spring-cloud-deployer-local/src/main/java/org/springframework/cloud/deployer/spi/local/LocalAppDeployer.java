@@ -134,9 +134,10 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				if (useDynamicPort) {
 					args.put(SERVER_PORT_KEY, String.valueOf(port));
 				}
-				ProcessBuilder builder = buildProcessBuilder(request, args, Optional.of(i)).inheritIO();
+				Map<String, String> appInstanceEnv = new HashMap<>();
+				AppInstance instance = new AppInstance(deploymentId, i, appInstanceEnv, port);
+				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.of(i)).inheritIO();
 				builder.directory(workDir.toFile());
-				AppInstance instance = new AppInstance(deploymentId, i, builder, port);
 				if (this.shouldInheritLogging(request)){
 					instance.start(builder, workDir);
 					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
@@ -228,16 +229,16 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private final Map<String, String> attributes = new TreeMap<>();
 
-		private AppInstance(String deploymentId, int instanceNumber, ProcessBuilder builder, int port) throws IOException {
+		private AppInstance(String deploymentId, int instanceNumber, Map<String, String> appInstanceEnv, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
 			attributes.put("port", Integer.toString(port));
 			attributes.put("guid", Integer.toString(port));
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 			attributes.put("url", baseUrl.toString());
-			builder.environment().put("INSTANCE_INDEX", Integer.toString(instanceNumber));
-			builder.environment().put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
-			builder.environment().put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+			appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(instanceNumber));
+			appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
+			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
 		}
 
 		@Override

@@ -47,7 +47,7 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
+		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Collections.emptyMap(), Optional.of(1));
 
 		assertThat(command, arrayContaining("docker", "run", "--name=gogo-1", "foo/bar"));
 	}

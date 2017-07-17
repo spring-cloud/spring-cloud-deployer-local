@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperti
 /**
  * @author Mark Pollack
  * @author Ilayaperumal Gopinathan
+ * @author Thomas Risberg
  */
 public class JavaCommandBuilder implements CommandBuilder {
 
@@ -54,13 +55,18 @@ public class JavaCommandBuilder implements CommandBuilder {
 	}
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
+	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+										  Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
 		ArrayList<String> commands = new ArrayList<String>();
 		Map<String, String> deploymentProperties = request.getDeploymentProperties();
 		commands.add(properties.getJavaCmd());
 		// Add Java System Properties (ie -Dmy.prop=val) before main class or -jar
 		addJavaOptions(commands, deploymentProperties, properties);
 		addJavaExecutionOptions(commands, request);
+		// Add appProperties
+		for (String prop : appProperties.keySet()) {
+			commands.add(String.format("--%s=%s", prop, appProperties.get(prop)));
+		}
 		commands.addAll(request.getCommandlineArguments());
 		logger.debug("Java Command = " + commands);
 		return commands.toArray(new String[0]);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
  * Strategy interface for Execution Command builder.
  *
  * @author Ilayaperumal Gopinathan
+ * @author Thomas Risberg
  */
 public interface CommandBuilder {
 
@@ -31,8 +32,12 @@ public interface CommandBuilder {
 	 * Builds the execution command for an application.
 	 *
 	 * @param request the request for the application to execute
-	 * @param args the properties to use when building the execution command
+	 * @param appInstanceEnv the env vars tha might be needed when building the execution command
+	 * @param appProperties the app properties to use when building the execution command
 	 * @return the build command as a string array
 	 */
-	String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber);
+	String[] buildExecutionCommand(AppDeploymentRequest request,
+								   Map<String, String> appInstanceEnv,
+								   Map<String, String> appProperties,
+								   Optional<Integer> appInstanceNumber);
 }

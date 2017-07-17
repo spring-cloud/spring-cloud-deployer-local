@@ -17,12 +17,19 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
@@ -44,6 +51,11 @@ import org.springframework.web.client.RestTemplate;
  */
 public abstract class AbstractLocalDeployerSupport {
 
+	public static final String USE_SPRING_APPLICATION_JSON_KEY =
+			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
+
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final LocalDeployerProperties properties;
@@ -53,6 +65,9 @@ public abstract class AbstractLocalDeployerSupport {
 	private final JavaCommandBuilder javaCommandBuilder;
 
 	private final DockerCommandBuilder dockerCommandBuilder;
+
+	private String[] envVarsSetByDeployer =
+			{"SPRING_CLOUD_APPLICATION_GUID", "SPRING_APPLICATION_INDEX", "INSTANCE_INDEX"};
 
 	/**
 	 * Instantiates a new abstract deployer support.
@@ -100,7 +115,9 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @param vars set of environment variable strings
 	 */
 	protected void retainEnvVars(Set<String> vars) {
-		String[] patterns = getLocalDeployerProperties().getEnvVarsToInherit();
+
+		List<String> patterns = new ArrayList<>(Arrays.asList(getLocalDeployerProperties().getEnvVarsToInherit()));
+		patterns.addAll(Arrays.asList(this.envVarsSetByDeployer));
 
 		for (Iterator<String> iterator = vars.iterator(); iterator.hasNext();) {
 			String var = iterator.next();
@@ -121,18 +138,25 @@ public abstract class AbstractLocalDeployerSupport {
 	 * Builds the process builder.
 	 *
 	 * @param request the request
-	 * @param args the args
+	 * @param appInstanceEnv the instance environment variables
+	 * @param appProperties the app properties
 	 * @return the process builder
 	 */
-	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> args, Optional<Integer> appInstanceNumber) {
+	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+												 Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
-		Assert.notNull(args, "Args must be set");
+		Assert.notNull(appProperties, "Args must be set");
 		String[] commands = null;
+		Map<String, String> appInstanceEnvToUse = new HashMap<>(appInstanceEnv);
+		Map<String, String> appPropertiesToUse = new HashMap<>();
+		handleAppPropertiesPassing(request, appProperties, appInstanceEnvToUse, appPropertiesToUse);
 		if (request.getResource() instanceof DockerResource) {
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
+			commands = this.dockerCommandBuilder.buildExecutionCommand(request,
+					appInstanceEnvToUse, appPropertiesToUse, appInstanceNumber);
 		}
 		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
+			commands = this.javaCommandBuilder.buildExecutionCommand(request,
+					appInstanceEnvToUse, appPropertiesToUse, appInstanceNumber);
 		}
 
 		// tweak escaping double quotes needed for windows
@@ -143,9 +167,33 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		ProcessBuilder builder = new ProcessBuilder(commands);
+		if (!(request.getResource() instanceof DockerResource)) {
+			builder.environment().putAll(appInstanceEnv);
+		}
 		retainEnvVars(builder.environment().keySet());
-		builder.environment().putAll(args);
 		return builder;
+	}
+
+	protected void handleAppPropertiesPassing(AppDeploymentRequest request, Map<String, String> appProperties,
+											  Map<String, String> appInstanceEnvToUse,
+											  Map<String, String> appPropertiesToUse) {
+		if (useSpringApplicationJson(request)) {
+			try {
+				appInstanceEnvToUse.putAll(Collections.singletonMap(
+						"SPRING_APPLICATION_JSON", OBJECT_MAPPER.writeValueAsString(appProperties)));
+			} catch (JsonProcessingException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		else {
+			appPropertiesToUse.putAll(appProperties);
+		}
+	}
+
+	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
+		return Optional.ofNullable(request.getDeploymentProperties().get(USE_SPRING_APPLICATION_JSON_KEY))
+				.map(Boolean::valueOf)
+				.orElse(this.properties.isUseSpringApplicationJson());
 	}
 
 	/**

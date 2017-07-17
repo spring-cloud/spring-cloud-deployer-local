@@ -85,6 +85,12 @@ public class LocalDeployerProperties {
 	 */
 	private String javaOpts;
 
+	/**
+	 * Flag to indicate whether application properties are passed as command line args or in a
+	 * SPRING_APPLICATION_JSON environment variable.
+	 */
+	private boolean useSpringApplicationJson = false;
+
 
 	public String getJavaCmd() {
 		return javaCmd;
@@ -133,6 +139,14 @@ public class LocalDeployerProperties {
 
 	public void setJavaOpts(String javaOpts) {
 		this.javaOpts = javaOpts;
+	}
+
+	public boolean isUseSpringApplicationJson() {
+		return useSpringApplicationJson;
+	}
+
+	public void setUseSpringApplicationJson(boolean useSpringApplicationJson) {
+		this.useSpringApplicationJson = useSpringApplicationJson;
 	}
 
 	private String deduceJavaCommand() {

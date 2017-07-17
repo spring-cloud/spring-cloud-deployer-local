@@ -109,7 +109,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			if (useDynamicPort) {
 				args.put(SERVER_PORT_KEY, String.valueOf(port));
 			}
-			ProcessBuilder builder = buildProcessBuilder(request, args, Optional.empty());
+			Map<String, String> appInstanceEnv = new HashMap<>();
+			ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.empty());
 			TaskInstance instance = new TaskInstance(builder, workDir, port);
 			running.put(taskLaunchId, instance);
 			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
