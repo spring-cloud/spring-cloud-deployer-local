@@ -134,6 +134,14 @@ public abstract class AbstractLocalDeployerSupport {
 		else {
 			commands = this.javaCommandBuilder.buildExecutionCommand(request, args, appInstanceNumber);
 		}
+
+		// tweak escaping double quotes needed for windows
+		if (LocalDeployerUtils.isWindows()) {
+			for (int i = 0; i < commands.length; i++) {
+				commands[i] = commands[i].replace("\"", "\\\"");
+			}
+		}
+
 		ProcessBuilder builder = new ProcessBuilder(commands);
 		retainEnvVars(builder.environment().keySet());
 		builder.environment().putAll(args);

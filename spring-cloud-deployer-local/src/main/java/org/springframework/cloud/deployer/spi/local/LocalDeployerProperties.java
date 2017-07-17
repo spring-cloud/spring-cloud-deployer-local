@@ -51,7 +51,7 @@ public class LocalDeployerProperties {
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
-	private static final String JAVA_COMMAND = isWindows() ? "java.exe" : "java";
+	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";
 
 	/**
 	 * Directory in which all created processes will run and create log files.
@@ -151,20 +151,6 @@ public class LocalDeployerProperties {
 		}
 
 		return javaExecutablePath;
-	}
-
-	private static boolean isWindows() {
-		String osName = null;
-		try {
-			osName = System.getProperty("os.name");
-		} catch (Exception e) {
-		}
-		if (osName == null) {
-			return false;
-		}
-		else {
-			return osName.toLowerCase().startsWith("windows");
-		}
 	}
 
 	@Override
