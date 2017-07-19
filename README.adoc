@@ -1,8 +1,17 @@
 == Spring Cloud Local Deployer
 
-WARNING: Spring Cloud Local Deployer is strictly only meant to be used for development. This 
-implementation is not recommended for production use because there’s no high availability, fault-tolerance, 
-or resiliency mechanics; hence, there are no reliable execution guarantees associated with it.
+Spring Cloud Local Deployer is an implementation of the Spring Cloud Deployer SPI for use
+to deploy applications on the same machine.  This occurs by this application spawning a
+new JVM process for the deployed application.
+
+NOTE:  It's important to note that this deployer spawns new JVMs that are not monitored
+or maintained by this deployer.  No attempts at high availability, fault tolerance, or
+resiliency are provided by the deployer.  Since the deployer SPI expects an underlying
+platform to provide that level of resiliency, any use of this deployer in a production
+environment should be accompanied with additional monitoring at the app level (the apps
+this deployer deploys).  This deployer will not be updated to take on those requirements.
+Therefore the user is encouraged to explore the CloudFoundry and Kubernetes variants as
+ways to meet them.
 
 === Building
 
@@ -15,4 +24,3 @@ Or build project and run tests:
 ```
 ./mvnw clean package
 ```
-
