@@ -16,6 +16,9 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.nio.ByteBuffer;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -37,6 +40,8 @@ import org.springframework.core.io.Resource;
  *   SPRING_CLOUD_DEPLOYER_SPI_TEST_USE_DOCKER=true
  *
  * @author Eric Bottard
+ * @author Janne Valkealahti
+ *
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
@@ -60,6 +65,19 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 			return new DockerResource("springcloud/spring-cloud-deployer-spi-test-app:latest");
 		}
 		return super.testApplication();
+	}
+
+	@Override
+	protected String randomName() {
+		if (LocalDeployerUtils.isWindows()) {
+			// tweak random dir name on win to be shorter
+			String uuid = UUID.randomUUID().toString();
+			long l = ByteBuffer.wrap(uuid.toString().getBytes()).getLong();
+			return name.getMethodName() + Long.toString(l, Character.MAX_RADIX);
+		}
+		else {
+			return super.randomName();
+		}
 	}
 
 	@Configuration
