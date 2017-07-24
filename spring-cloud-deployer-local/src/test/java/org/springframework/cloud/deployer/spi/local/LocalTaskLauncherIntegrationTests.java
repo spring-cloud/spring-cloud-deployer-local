@@ -16,8 +16,10 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.Test;
 
@@ -49,6 +51,19 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 	@Override
 	protected TaskLauncher provideTaskLauncher() {
 		return taskLauncher;
+	}
+
+	@Override
+	protected String randomName() {
+		if (LocalDeployerUtils.isWindows()) {
+			// tweak random dir name on win to be shorter
+			String uuid = UUID.randomUUID().toString();
+			long l = ByteBuffer.wrap(uuid.toString().getBytes()).getLong();
+			return name.getMethodName() + Long.toString(l, Character.MAX_RADIX);
+		}
+		else {
+			return super.randomName();
+		}
 	}
 
 	@Configuration
