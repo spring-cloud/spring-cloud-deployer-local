@@ -67,8 +67,7 @@ public class LocalDeployerProperties {
 	 * Array of regular expression patterns for environment variables that
 	 * should be passed to launched applications.
 	 */
-	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH",
-			"SPRING_CLOUD_APPLICATION_GUID", "SPRING_APPLICATION_INDEX", "INSTANCE_INDEX"};
+	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH"};
 
 	/**
 	 * The command to run java.
@@ -85,6 +84,12 @@ public class LocalDeployerProperties {
 	 * The Java Options to pass to the JVM, e.g -Dtest=foo
 	 */
 	private String javaOpts;
+
+	/**
+	 * Flag to indicate whether application properties are passed as command line args or in a
+	 * SPRING_APPLICATION_JSON environment variable.
+	 */
+	private boolean useSpringApplicationJson = false;
 
 
 	public String getJavaCmd() {
@@ -134,6 +139,14 @@ public class LocalDeployerProperties {
 
 	public void setJavaOpts(String javaOpts) {
 		this.javaOpts = javaOpts;
+	}
+
+	public boolean isUseSpringApplicationJson() {
+		return useSpringApplicationJson;
+	}
+
+	public void setUseSpringApplicationJson(boolean useSpringApplicationJson) {
+		this.useSpringApplicationJson = useSpringApplicationJson;
 	}
 
 	private String deduceJavaCommand() {
