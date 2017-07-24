@@ -24,9 +24,11 @@ import static org.springframework.cloud.deployer.spi.app.DeploymentState.deploye
 import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown;
 import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Map.Entry;
 
 import org.hamcrest.Matchers;
@@ -64,6 +66,19 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	@Override
 	protected AppDeployer provideAppDeployer() {
 		return appDeployer;
+	}
+
+	@Override
+	protected String randomName() {
+		if (LocalDeployerUtils.isWindows()) {
+			// tweak random dir name on win to be shorter
+			String uuid = UUID.randomUUID().toString();
+			long l = ByteBuffer.wrap(uuid.toString().getBytes()).getLong();
+			return name.getMethodName() + Long.toString(l, Character.MAX_RADIX);
+		}
+		else {
+			return super.randomName();
+		}
 	}
 
 	@Test
