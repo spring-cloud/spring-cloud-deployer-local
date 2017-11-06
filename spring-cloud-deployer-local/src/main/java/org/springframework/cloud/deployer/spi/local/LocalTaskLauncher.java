@@ -59,6 +59,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private static final String SERVER_PORT_KEY = "server.port";
 
+	final String SERVER_PORT_KEY_PREFIX = "--" + SERVER_PORT_KEY + "=";
+
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
 	private static final int DEFAULT_SERVER_PORT = 8080;
@@ -86,7 +88,9 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			}
 		}
 		String taskLaunchId = request.getDefinition().getName() + "-" + UUID.randomUUID().toString();
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
+		boolean isServerPortKeyonArgs = isServerPortKeyPresentOnArgs(request);
+		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY)
+				&& !isServerPortKeyonArgs;
 		HashMap<String, String> args = new HashMap<>();
 		args.putAll(request.getDefinition().getProperties());
 		args.put(JMX_DEFAULT_DOMAIN_KEY, taskLaunchId);
@@ -104,8 +108,15 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
 				workDir.toFile().deleteOnExit();
 			}
-			int port = useDynamicPort ? SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT)
-					: Integer.parseInt(request.getDefinition().getProperties().get(SERVER_PORT_KEY));
+			int port;
+			if(useDynamicPort) {
+				port = SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT);
+			}
+			else if(!isServerPortKeyonArgs){
+				port = Integer.parseInt(request.getDefinition().getProperties().get(SERVER_PORT_KEY));
+			} else {
+				port = getServerPortArg(request);
+			}
 			if (useDynamicPort) {
 				args.put(SERVER_PORT_KEY, String.valueOf(port));
 			}
@@ -252,5 +263,27 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			// process is still alive
 			return null;
 		}
+	}
+
+	private boolean isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
+		boolean result = false;
+			for (String argument : request.getCommandlineArguments()) {
+				if (argument.startsWith(SERVER_PORT_KEY_PREFIX)) {
+					result = true;
+					break;
+				}
+		}
+		return result;
+	}
+
+	private int getServerPortArg(AppDeploymentRequest request) {
+		int result = 0;
+		for (String argument : request.getCommandlineArguments()) {
+			if (argument.startsWith(SERVER_PORT_KEY_PREFIX)) {
+				result = Integer.valueOf(argument.substring(SERVER_PORT_KEY_PREFIX.length()));
+				break;
+			}
+		}
+		return result;
 	}
 }
