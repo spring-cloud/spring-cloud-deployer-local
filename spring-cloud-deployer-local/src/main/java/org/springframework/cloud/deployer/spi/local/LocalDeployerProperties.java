@@ -25,6 +25,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.style.ToStringCreator;
 import org.springframework.util.Assert;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+
 /**
  * Configuration properties for the local deployer.
  *
@@ -90,6 +93,19 @@ public class LocalDeployerProperties {
 	 * SPRING_APPLICATION_JSON environment variable.
 	 */
 	private boolean useSpringApplicationJson = false;
+
+	/**
+	 * The target percentag of free disk space to always aim for when cleaning downloaded
+	 * resources (typically via the local maven repository). Specify as an integer greater
+	 * than zero and less than 100. Default is 25.
+	 */
+	private int freeDiskSpacePercentage = 25;
+
+	@Min(0)
+	@Max(100)
+	public int getFreeDiskSpacePercentage() {
+		return freeDiskSpacePercentage;
+	}
 
 
 	public String getJavaCmd() {
