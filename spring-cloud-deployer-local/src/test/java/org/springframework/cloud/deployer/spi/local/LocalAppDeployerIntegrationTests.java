@@ -144,6 +144,31 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		deployer.undeploy(deploymentId);
 	}
 
+	@Test
+	public void testInDebugModeWithSuspended() throws Exception {
+		Map<String, String> properties = new HashMap<>();
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.DEBUG_PORT, "9999");
+		deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		AppDeployer deployer = appDeployer();
+		String deploymentId = deployer.deploy(request);
+		Thread.sleep(5000);
+		AppStatus appStatus = deployer.status(deploymentId);
+		assertTrue(appStatus.toString().equals("deploying"));
+		assertTrue(appStatus.getInstances().size() > 0);
+		for (Entry<String, AppInstanceStatus> instanceStatusEntry : appStatus.getInstances().entrySet()) {
+			Map<String, String> attributes = instanceStatusEntry.getValue().getAttributes();
+			assertFalse(attributes.containsKey("stdout"));
+			assertFalse(attributes.containsKey("stderr"));
+		}
+		deployer.undeploy(deploymentId);
+	}
+
 	@Configuration
 	@EnableConfigurationProperties(LocalDeployerProperties.class)
 	public static class Config {
