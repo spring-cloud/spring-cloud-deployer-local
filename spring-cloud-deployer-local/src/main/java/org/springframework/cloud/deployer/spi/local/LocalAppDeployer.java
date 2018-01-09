@@ -139,7 +139,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.of(i)).inheritIO();
 
 				if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.DEBUG_PORT)) {
-					builder.command().add(1, this.buildRemoteDebugInstruction(request.getDeploymentProperties()));
+					builder.command().add(1, this.buildRemoteDebugInstruction(i, request.getDeploymentProperties()));
 				}
 
 				builder.directory(workDir.toFile());
@@ -202,18 +202,19 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
-	private String buildRemoteDebugInstruction(Map<String, String> deploymentProperties) {
+	private String buildRemoteDebugInstruction(int instanceId, Map<String, String> deploymentProperties) {
 		String dp = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
 		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
 		StringBuilder debugCommandBuilder = new StringBuilder();
 		if (StringUtils.hasText(dp)) {
-			logger.warn("***** [REMOTE DEBUGGING] REMOTE DEBUGGING IS ENABLED ON PORT " + dp + " *****");
+			int debugPort = Integer.parseInt(dp) + instanceId;
+			logger.warn("Remote debugging is enabled on port " + debugPort);
 			debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
 			debugCommandBuilder.append(ds.trim());
 			debugCommandBuilder.append(",address=");
-			debugCommandBuilder.append(dp.trim());
+			debugCommandBuilder.append(debugPort);
 			if (ds.equals("y")) {
-				logger.warn("***** [REMOTE DEBUGGING] APPLICATION STARTUP WILL BE SUSPENDED UNTIL REMOTE DEBUGGING SESSION IS ESTABLISHED *****");
+				logger.warn("Application startup will be suspended until remote debugging session is established");
 			}
 		}
 		return debugCommandBuilder.toString();
