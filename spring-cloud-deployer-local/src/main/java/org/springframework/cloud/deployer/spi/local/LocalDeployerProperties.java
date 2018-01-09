@@ -107,6 +107,9 @@ public class LocalDeployerProperties {
 		return freeDiskSpacePercentage;
 	}
 
+	public void setFreeDiskSpacePercentage(int freeDiskSpacePercentage) {
+		this.freeDiskSpacePercentage = freeDiskSpacePercentage;
+	}
 
 	public String getJavaCmd() {
 		return javaCmd;
