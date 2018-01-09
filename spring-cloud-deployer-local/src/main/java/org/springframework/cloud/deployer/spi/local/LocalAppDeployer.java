@@ -137,6 +137,15 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				Map<String, String> appInstanceEnv = new HashMap<>();
 				AppInstance instance = new AppInstance(deploymentId, i, appInstanceEnv, port);
 				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.of(i)).inheritIO();
+
+				if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
+					int portToUse = calculateDebugPort(request.getDeploymentProperties(), i);
+					builder.command().add(1, this.buildRemoteDebugInstruction(
+							request.getDeploymentProperties(),
+							deploymentId,
+							i,
+							portToUse));
+				}
 				builder.directory(workDir.toFile());
 				if (this.shouldInheritLogging(request)){
 					instance.start(builder, workDir);
@@ -195,6 +204,29 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		for (String deploymentId : running.keySet()) {
 			undeploy(deploymentId);
 		}
+	}
+
+	private String buildRemoteDebugInstruction(Map<String, String> deploymentProperties,
+											   String deploymentId,
+											   int instanceIndex,
+											   int port) {
+		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+		StringBuilder debugCommandBuilder = new StringBuilder();
+		String debugCommand;
+			logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
+					deploymentId, instanceIndex, port);
+			debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
+			debugCommandBuilder.append(ds.trim());
+			debugCommandBuilder.append(",address=");
+			debugCommandBuilder.append(port);
+			debugCommand = debugCommandBuilder.toString();
+			logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
+			if (ds.equals("y")) {
+				logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote " +
+						"debugging session is established.");
+			}
+
+		return debugCommand;
 	}
 
 	/**

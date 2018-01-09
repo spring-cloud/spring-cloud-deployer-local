@@ -245,6 +245,44 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 	}
 
+	/**
+	 * Determines if there is a valid debug port specified in the deployment properites.
+	 * @param deploymentProperties the deployment properties to validate
+	 * @param deploymentId the deployment Id for logging purposes
+	 * @return true if there is a valid debug port, false otherwise
+	 */
+	protected boolean containsValidDebugPort(Map<String, String> deploymentProperties, String deploymentId) {
+		boolean validDebugPort = false;
+		if (deploymentProperties.containsKey(LocalDeployerProperties.DEBUG_PORT)) {
+			String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
+			try {
+				int port = Integer.parseInt(basePort);
+				if (port <= 0) {
+					logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
+					return false;
+				}
+			} catch (NumberFormatException e) {
+				logger.error("The debug port {} specified for deploymentId {} can not be parsed to an integer.",
+						basePort, deploymentId);
+				return false;
+			}
+			validDebugPort = true;
+		}
+		return validDebugPort;
+	}
+
+	/**
+	 * Gets the base debug port value and adds the instance count.  Assumes {@link #containsValidDebugPort(Map, String)}
+	 * has been called before to validate the deployment properties.
+	 * @param deploymentProperties deployment properties with a valid value of debug port
+	 * @param instanceIndex the index of the application to deploy
+	 * @return the value of adding the debug port + instance index.
+	 */
+	protected int calculateDebugPort(Map<String, String> deploymentProperties, int instanceIndex) {
+		String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
+		return Integer.parseInt(basePort) + instanceIndex;
+	}
+
 	protected interface Instance {
 
 		URL getBaseUrl();
