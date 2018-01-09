@@ -52,6 +52,19 @@ public class LocalDeployerProperties {
 	 */
 	public static final String INHERIT_LOGGING = PREFIX + ".inheritLogging";
 
+	/**
+	 * Remote debugging property allowing one to specify port for the remote debug session.
+	 * Must be set per individual application (<em>i.e.</em> {@literal deployer.<app-name>.local.debugPort=9999}).
+	 */
+	public static final String DEBUG_PORT = PREFIX + ".debugPort";
+
+	/**
+	 * Remote debugging property allowing one to specify if the startup of the application should
+	 * be suspended until remote debug session is established. Values must be either 'y' or 'n'.
+	 * Must be set per individual application (<em>i.e.</em> {@literal deployer.<app-name>.local.debugSuspend=y}).
+	 */
+	public static final String DEBUG_SUSPEND = PREFIX + ".debugSuspend";
+
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
 	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";
