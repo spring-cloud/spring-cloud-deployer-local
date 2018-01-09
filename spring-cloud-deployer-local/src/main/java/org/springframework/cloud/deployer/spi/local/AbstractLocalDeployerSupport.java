@@ -266,6 +266,7 @@ public abstract class AbstractLocalDeployerSupport {
 						basePort, deploymentId);
 				return false;
 			}
+			validDebugPort = true;
 		}
 		return validDebugPort;
 	}

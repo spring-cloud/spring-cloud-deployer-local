@@ -158,9 +158,9 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 
 		AppDeployer deployer = appDeployer();
 		String deploymentId = deployer.deploy(request);
-		Thread.sleep(15000);
+		Thread.sleep(5000);
 		AppStatus appStatus = deployer.status(deploymentId);
-		//assertEquals("deploying", appStatus.toString());
+		assertEquals("deploying", appStatus.toString());
 		assertTrue(appStatus.getInstances().size() > 0);
 		for (Entry<String, AppInstanceStatus> instanceStatusEntry : appStatus.getInstances().entrySet()) {
 			Map<String, String> attributes = instanceStatusEntry.getValue().getAttributes();
