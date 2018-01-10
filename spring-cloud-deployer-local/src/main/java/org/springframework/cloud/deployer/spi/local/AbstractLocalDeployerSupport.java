@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ import org.springframework.web.client.RestTemplate;
  * @author Mark Fisher
  * @author Ilayaperumal Gopinathan
  * @author Thomas Risberg
+ * @author Oleg Zhurakousky
  */
 public abstract class AbstractLocalDeployerSupport {
 
@@ -80,13 +81,34 @@ public abstract class AbstractLocalDeployerSupport {
 		this.javaCommandBuilder = new JavaCommandBuilder(properties);
 		this.dockerCommandBuilder = new DockerCommandBuilder();
 	}
+	
+	protected String buildRemoteDebugInstruction(Map<String, String> deploymentProperties, String deploymentId,
+			int instanceIndex, int port) {
+		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+		StringBuilder debugCommandBuilder = new StringBuilder();
+		String debugCommand;
+		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
+				deploymentId, instanceIndex, port);
+		debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
+		debugCommandBuilder.append(ds.trim());
+		debugCommandBuilder.append(",address=");
+		debugCommandBuilder.append(port);
+		debugCommand = debugCommandBuilder.toString();
+		logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
+		if (ds.equals("y")) {
+			logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote "
+					+ "debugging session is established.");
+		}
+
+		return debugCommand;
+	}
 
 	/**
 	 * Create the RuntimeEnvironmentInfo.
 	 *
 	 * @return the local runtime environment info
 	 */
-	protected RuntimeEnvironmentInfo createRuntimeEnvironmentInfo(Class spiClass, Class implementationClass) {
+	protected RuntimeEnvironmentInfo createRuntimeEnvironmentInfo(Class<?> spiClass, Class<?> implementationClass) {
 		return new RuntimeEnvironmentInfo.Builder()
 				.spiClass(spiClass)
 				.implementationName(implementationClass.getSimpleName())
@@ -143,7 +165,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @return the process builder
 	 */
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-												 Map<String, String> appProperties, Optional<Integer> appInstanceNumber) {
+												 Map<String, String> appProperties, Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		Assert.notNull(appProperties, "Args must be set");
 		String[] commands = null;
@@ -171,6 +193,16 @@ public abstract class AbstractLocalDeployerSupport {
 			builder.environment().putAll(appInstanceEnv);
 		}
 		retainEnvVars(builder.environment().keySet());
+		
+		if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
+			int portToUse = calculateDebugPort(request.getDeploymentProperties(), appInstanceNumber.orElseGet(() -> 0));
+			builder.command().add(1, this.buildRemoteDebugInstruction(
+					request.getDeploymentProperties(),
+					deploymentId,
+					appInstanceNumber.orElseGet(() -> 0),
+					portToUse));
+		}
+		
 		return builder;
 	}
 
@@ -188,12 +220,6 @@ public abstract class AbstractLocalDeployerSupport {
 		else {
 			appPropertiesToUse.putAll(appProperties);
 		}
-	}
-
-	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
-		return Optional.ofNullable(request.getDeploymentProperties().get(USE_SPRING_APPLICATION_JSON_KEY))
-				.map(Boolean::valueOf)
-				.orElse(this.properties.isUseSpringApplicationJson());
 	}
 
 	/**
@@ -281,6 +307,12 @@ public abstract class AbstractLocalDeployerSupport {
 	protected int calculateDebugPort(Map<String, String> deploymentProperties, int instanceIndex) {
 		String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
 		return Integer.parseInt(basePort) + instanceIndex;
+	}
+	
+	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
+		return Optional.ofNullable(request.getDeploymentProperties().get(USE_SPRING_APPLICATION_JSON_KEY))
+				.map(Boolean::valueOf)
+				.orElse(this.properties.isUseSpringApplicationJson());
 	}
 
 	protected interface Instance {

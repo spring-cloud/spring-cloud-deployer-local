@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import org.springframework.util.SocketUtils;
  * @author Mark Fisher
  * @author Janne Valkealahti
  * @author Thomas Risberg
+ * @author Oleg Zhurakousky
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -121,7 +122,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 				args.put(SERVER_PORT_KEY, String.valueOf(port));
 			}
 			Map<String, String> appInstanceEnv = new HashMap<>();
-			ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.empty());
+			ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.empty(), taskLaunchId);
 			TaskInstance instance = new TaskInstance(builder, workDir, port);
 			running.put(taskLaunchId, instance);
 			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017 the original author or authors.
+ * Copyright 2016-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -161,12 +161,6 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		Thread.sleep(5000);
 		AppStatus appStatus = deployer.status(deploymentId);
 		assertEquals("deploying", appStatus.toString());
-		assertTrue(appStatus.getInstances().size() > 0);
-		for (Entry<String, AppInstanceStatus> instanceStatusEntry : appStatus.getInstances().entrySet()) {
-			Map<String, String> attributes = instanceStatusEntry.getValue().getAttributes();
-			assertFalse(attributes.containsKey("stdout"));
-			assertFalse(attributes.containsKey("stderr"));
-		}
 		deployer.undeploy(deploymentId);
 	}
 
