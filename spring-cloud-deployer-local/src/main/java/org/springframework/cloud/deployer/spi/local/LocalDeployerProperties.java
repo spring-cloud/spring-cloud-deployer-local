@@ -110,9 +110,9 @@ public class LocalDeployerProperties {
 	/**
 	 * The target percentag of free disk space to always aim for when cleaning downloaded
 	 * resources (typically via the local maven repository). Specify as an integer greater
-	 * than zero and less than 100. Default is 25.
+	 * than zero and less than 100. Default is 5.
 	 */
-	private int freeDiskSpacePercentage = 25;
+	private int freeDiskSpacePercentage = 5;
 
 	@Min(0)
 	@Max(100)
