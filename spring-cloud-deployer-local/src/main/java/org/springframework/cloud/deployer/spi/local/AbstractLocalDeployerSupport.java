@@ -191,6 +191,7 @@ public abstract class AbstractLocalDeployerSupport {
 		ProcessBuilder builder = new ProcessBuilder(commands);
 		if (!(request.getResource() instanceof DockerResource)) {
 			builder.environment().putAll(appInstanceEnv);
+			builder.environment().putAll(appInstanceEnvToUse);
 		}
 		retainEnvVars(builder.environment().keySet());
 		
