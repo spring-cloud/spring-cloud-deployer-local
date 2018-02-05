@@ -18,6 +18,7 @@ package org.springframework.cloud.deployer.spi.local;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
@@ -27,15 +28,18 @@ import org.springframework.core.io.UrlResource;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
@@ -163,6 +167,26 @@ public class JavaExecutionCommandBuilderTests {
                 new AppDeploymentRequest(definition, testResource(), deploymentProperties);
         commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
     }
+
+    @Test
+    public void testCommandBuilderSpringApplicationJson() throws Exception {
+        String mainJar = "/tmp/myapp.jar";
+        LocalDeployerProperties properties = new LocalDeployerProperties();
+        properties.setUseSpringApplicationJson(true);
+        LocalAppDeployer deployer = new LocalAppDeployer(properties);
+        AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));
+
+        deploymentProperties.put(LocalDeployerProperties.DEBUG_PORT, "9999");
+        deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+        deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+        AppDeploymentRequest request = new AppDeploymentRequest(definition, testResource(), deploymentProperties);
+
+
+        ProcessBuilder builder = deployer.buildProcessBuilder(request, Collections.emptyMap(), request.getDefinition().getProperties(), Optional.of(1), "foo" );
+        assertThat(builder.environment().keySet(), hasItem("SPRING_APPLICATION_JSON"));
+        assertThat(builder.environment().get("SPRING_APPLICATION_JSON"), is("{\"foo\":\"bar\"}"));
+    }
+
 
 
 

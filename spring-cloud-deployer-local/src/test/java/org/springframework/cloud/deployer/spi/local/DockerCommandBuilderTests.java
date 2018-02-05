@@ -17,14 +17,14 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import org.hamcrest.collection.IsArrayContainingInOrder;
 import org.junit.Test;
 
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
@@ -50,6 +50,25 @@ public class DockerCommandBuilderTests {
 		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Collections.emptyMap(), Optional.of(1));
 
 		assertThat(command, arrayContaining("docker", "run", "--name=gogo-1", "foo/bar"));
+	}
+
+	@Test
+	public void testSpringApplicationJSON() throws Exception {
+		LocalDeployerProperties properties = new LocalDeployerProperties();
+		properties.setUseSpringApplicationJson(true);
+		LocalAppDeployer deployer = new LocalAppDeployer(properties);
+		AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.DEBUG_PORT, "9999");
+		deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+
+		ProcessBuilder builder = deployer.buildProcessBuilder(request, Collections.emptyMap(), request.getDefinition().getProperties(), Optional.of(1), "foo" );
+		assertThat(builder.command(), hasItems("-e", "SPRING_APPLICATION_JSON={\"foo\":\"bar\"}"));
+
 	}
 
 }
