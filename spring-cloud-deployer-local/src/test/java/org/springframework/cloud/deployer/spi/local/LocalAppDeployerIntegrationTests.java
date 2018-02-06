@@ -16,24 +16,16 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.springframework.cloud.deployer.spi.app.DeploymentState.deployed;
-import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown;
-import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
-
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.hamcrest.Matchers;
 import org.junit.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -51,6 +43,15 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.springframework.cloud.deployer.spi.app.DeploymentState.deployed;
+import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown;
+import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
 /**
  * Integration tests for {@link LocalAppDeployer}.

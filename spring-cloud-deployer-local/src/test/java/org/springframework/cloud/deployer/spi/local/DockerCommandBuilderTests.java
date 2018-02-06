@@ -16,10 +16,6 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
-import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,6 +27,10 @@ import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.core.io.Resource;
+
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
+import static org.junit.Assert.assertThat;
 
 /**
  * Unit tests for {@link DockerCommandBuilder}.

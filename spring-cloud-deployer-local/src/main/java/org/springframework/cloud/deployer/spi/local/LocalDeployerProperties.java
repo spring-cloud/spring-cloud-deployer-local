@@ -19,14 +19,15 @@ package org.springframework.cloud.deployer.spi.local;
 import java.io.File;
 import java.nio.file.Path;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.style.ToStringCreator;
 import org.springframework.util.Assert;
-
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
 /**
  * Configuration properties for the local deployer.
