@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2017 the original author or authors.
+ * Copyright 2015-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.springframework.util.Assert;
  * @author Mark Fisher
  * @author Ilayaperumal Gopinathan
  * @author Oleg Zhurakousky
+ * @author Vinicius Carvalho
  */
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
@@ -84,7 +85,7 @@ public class LocalDeployerProperties {
 	 * Array of regular expression patterns for environment variables that
 	 * should be passed to launched applications.
 	 */
-	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH", "SPRING_APPLICATION_JSON"};
+	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH", AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON};
 
 	/**
 	 * The command to run java.
@@ -104,9 +105,9 @@ public class LocalDeployerProperties {
 
 	/**
 	 * Flag to indicate whether application properties are passed as command line args or in a
-	 * SPRING_APPLICATION_JSON environment variable.
+	 * SPRING_APPLICATION_JSON environment variable.  Default value is {@code true}.
 	 */
-	private boolean useSpringApplicationJson = false;
+	private boolean useSpringApplicationJson = true;
 
 	/**
 	 * The target percentag of free disk space to always aim for when cleaning downloaded

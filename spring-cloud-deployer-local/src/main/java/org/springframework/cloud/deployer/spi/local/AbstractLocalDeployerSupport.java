@@ -16,6 +16,7 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,11 +52,14 @@ import org.springframework.web.client.RestTemplate;
  * @author Ilayaperumal Gopinathan
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
+ * @author Vinicius Carvalho
  */
 public abstract class AbstractLocalDeployerSupport {
 
 	public static final String USE_SPRING_APPLICATION_JSON_KEY =
 			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
+
+	public static final String SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON";
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -213,9 +218,16 @@ public abstract class AbstractLocalDeployerSupport {
 											  Map<String, String> appPropertiesToUse) {
 		if (useSpringApplicationJson(request)) {
 			try {
+				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
+				Map<String, String> localApplicationProperties = new HashMap<>(appProperties);
+				if(localApplicationProperties.containsKey(SPRING_APPLICATION_JSON)){
+					localApplicationProperties.putAll(OBJECT_MAPPER.readValue(appProperties.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
+					localApplicationProperties.remove(SPRING_APPLICATION_JSON);
+				}
 				appInstanceEnvToUse.putAll(Collections.singletonMap(
-						"SPRING_APPLICATION_JSON", OBJECT_MAPPER.writeValueAsString(appProperties)));
-			} catch (JsonProcessingException e) {
+						SPRING_APPLICATION_JSON, OBJECT_MAPPER.writeValueAsString(localApplicationProperties)));
+			}
+			catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 		}

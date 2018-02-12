@@ -27,6 +27,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -50,15 +51,16 @@ public class LocalDeployerSupportTests {
 
 	@Test
 	public void testAppPropsAsCommandLineArgs() throws MalformedURLException {
-		Map<String, String> appProperties = new HashMap<>();
-		appProperties.put("test.foo", "foo");
-		appProperties.put("test.bar", "bar");
-		AppDefinition definition = new AppDefinition("randomApp", appProperties);
-		AppDeploymentRequest appDeploymentRequest =
-				new AppDeploymentRequest(definition, testResource(), deploymentProperties);
+		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
+		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest(deploymentProperties);
+
 		HashMap<String, String> envVarsToUse = new HashMap<>();
 		HashMap<String, String> appPropsToUse = new HashMap<>();
-		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest, appProperties, envVarsToUse, appPropsToUse);
+		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest,
+				appDeploymentRequest.getDefinition().getProperties(),
+				envVarsToUse,
+				appPropsToUse);
+
 		assertThat(appPropsToUse.size(), is(2));
 		assertThat(envVarsToUse.size(), is(0));
 		assertThat(appPropsToUse.get("test.foo"), is("foo"));
@@ -66,20 +68,33 @@ public class LocalDeployerSupportTests {
 	}
 
 	@Test
-	public void testSpringApplicationJson() throws MalformedURLException {
+	public void testAppPropsAsSAJ() throws MalformedURLException {
+		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest();
+
+		HashMap<String, String> envVarsToUse = new HashMap<>();
+		HashMap<String, String> appPropsToUse = new HashMap<>();
+		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest,
+				appDeploymentRequest.getDefinition().getProperties(),
+				envVarsToUse,
+				appPropsToUse);
+
+		assertThat(appPropsToUse.size(), is(0));
+		assertThat(envVarsToUse.size(), is(1));
+		assertThat(envVarsToUse.keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
+		assertThat(envVarsToUse.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"test.foo\":\"foo\",\"test.bar\":\"bar\"}"));
+	}
+
+	protected AppDeploymentRequest createAppDeploymentRequest() throws MalformedURLException {
+		return createAppDeploymentRequest(new HashMap<>());
+	}
+
+	protected AppDeploymentRequest createAppDeploymentRequest(Map<String, String> depProps) throws MalformedURLException {
 		Map<String, String> appProperties = new HashMap<>();
 		appProperties.put("test.foo", "foo");
 		appProperties.put("test.bar", "bar");
 		AppDefinition definition = new AppDefinition("randomApp", appProperties);
-		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "true");
-		AppDeploymentRequest appDeploymentRequest =
-				new AppDeploymentRequest(definition, testResource(), deploymentProperties);
-		HashMap<String, String> envVarsToUse = new HashMap<>();
-		HashMap<String, String> appPropsToUse = new HashMap<>();
-		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest, appProperties, envVarsToUse, appPropsToUse);
-		assertThat(appPropsToUse.size(), is(0));
-		assertThat(envVarsToUse.size(), is(1));
-		assertThat(envVarsToUse.get("SPRING_APPLICATION_JSON"), is("{\"test.bar\":\"bar\",\"test.foo\":\"foo\"}"));
+		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
+		return new AppDeploymentRequest(definition, testResource(), depProps);
 	}
 
 

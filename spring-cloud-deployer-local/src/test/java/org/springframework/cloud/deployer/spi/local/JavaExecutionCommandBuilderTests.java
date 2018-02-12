@@ -168,7 +168,6 @@ public class JavaExecutionCommandBuilderTests {
     public void testCommandBuilderSpringApplicationJson() throws Exception {
         String mainJar = "/tmp/myapp.jar";
         LocalDeployerProperties properties = new LocalDeployerProperties();
-        properties.setUseSpringApplicationJson(true);
         LocalAppDeployer deployer = new LocalAppDeployer(properties);
         AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));
 
@@ -179,8 +178,29 @@ public class JavaExecutionCommandBuilderTests {
 
 
         ProcessBuilder builder = deployer.buildProcessBuilder(request, Collections.emptyMap(), request.getDefinition().getProperties(), Optional.of(1), "foo" );
-        assertThat(builder.environment().keySet(), hasItem("SPRING_APPLICATION_JSON"));
-        assertThat(builder.environment().get("SPRING_APPLICATION_JSON"), is("{\"foo\":\"bar\"}"));
+        assertThat(builder.environment().keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
+        assertThat(builder.environment().get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"foo\":\"bar\"}"));
+    }
+    @Test
+    public void testCommandBuilderWithSpringApplicationJson() throws Exception {
+        LocalDeployerProperties properties = new LocalDeployerProperties();
+        LocalAppDeployer deployer = new LocalAppDeployer(properties);
+        Map<String,String> applicationProperties = new HashMap<>();
+        applicationProperties.put("foo","bar");
+        String SAJ = "{\"debug\":\"true\"}";
+        applicationProperties.put(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON,SAJ);
+        AppDefinition definition = new AppDefinition("foo", applicationProperties);
+
+        deploymentProperties.put(LocalDeployerProperties.DEBUG_PORT, "9999");
+        deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+        deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+        AppDeploymentRequest request = new AppDeploymentRequest(definition, testResource(), deploymentProperties);
+
+
+        ProcessBuilder builder = deployer.buildProcessBuilder(request, Collections.emptyMap(), request.getDefinition().getProperties(), Optional.of(1), "foo" );
+        assertThat(builder.environment().keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
+        assertThat(builder.environment().get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"foo\":\"bar\",\"debug\":\"true\"}"));
+
     }
 
 
