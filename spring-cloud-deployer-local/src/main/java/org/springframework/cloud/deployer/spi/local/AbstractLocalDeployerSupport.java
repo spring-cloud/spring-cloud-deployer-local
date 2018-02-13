@@ -226,8 +226,6 @@ public abstract class AbstractLocalDeployerSupport {
 				}
 				appInstanceEnvToUse.putAll(Collections.singletonMap(
 						SPRING_APPLICATION_JSON, OBJECT_MAPPER.writeValueAsString(localApplicationProperties)));
-			} catch (JsonProcessingException e) {
-				throw new RuntimeException(e);
 			}
 			catch (IOException e) {
 				throw new RuntimeException(e);
