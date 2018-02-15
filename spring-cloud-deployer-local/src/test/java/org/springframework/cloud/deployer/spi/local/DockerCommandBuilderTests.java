@@ -55,7 +55,6 @@ public class DockerCommandBuilderTests {
 	@Test
 	public void testSpringApplicationJSON() throws Exception {
 		LocalDeployerProperties properties = new LocalDeployerProperties();
-		properties.setUseSpringApplicationJson(true);
 		LocalAppDeployer deployer = new LocalAppDeployer(properties);
 		AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));
 		Resource resource = new DockerResource("foo/bar");
@@ -64,10 +63,10 @@ public class DockerCommandBuilderTests {
 		deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
 		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
 		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
-
-
 		ProcessBuilder builder = deployer.buildProcessBuilder(request, Collections.emptyMap(), request.getDefinition().getProperties(), Optional.of(1), "foo" );
-		assertThat(builder.command(), hasItems("-e", "SPRING_APPLICATION_JSON={\"foo\":\"bar\"}"));
+
+		String SAJ = LocalDeployerUtils.isWindows() ? "SPRING_APPLICATION_JSON={\\\"foo\\\":\\\"bar\\\"}" : "SPRING_APPLICATION_JSON={\"foo\":\"bar\"}";
+		assertThat(builder.command(), hasItems("-e", SAJ));
 
 	}
 
