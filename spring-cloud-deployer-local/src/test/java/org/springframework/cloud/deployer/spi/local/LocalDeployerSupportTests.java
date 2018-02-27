@@ -19,6 +19,7 @@ import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -28,6 +29,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -51,16 +53,17 @@ public class LocalDeployerSupportTests {
 
 	@Test
 	public void testAppPropsAsCommandLineArgs() throws MalformedURLException {
-		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
-		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest(deploymentProperties);
+		Map<String, String> appProperties = new HashMap<>();
+		appProperties.put("test.foo", "foo");
+		appProperties.put("test.bar", "bar");
+		AppDefinition definition = new AppDefinition("randomApp", appProperties);
+		deploymentProperties.put(AbstractLocalDeployerSupport.USE_SPRING_APPLICATION_JSON_KEY, "false");
+		AppDeploymentRequest appDeploymentRequest =
+				new AppDeploymentRequest(definition, testResource(), deploymentProperties);
 
 		HashMap<String, String> envVarsToUse = new HashMap<>();
 		HashMap<String, String> appPropsToUse = new HashMap<>();
-		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest,
-				appDeploymentRequest.getDefinition().getProperties(),
-				envVarsToUse,
-				appPropsToUse);
-
+		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest, appProperties, envVarsToUse, appPropsToUse);
 		assertThat(appPropsToUse.size(), is(2));
 		assertThat(envVarsToUse.size(), is(0));
 		assertThat(appPropsToUse.get("test.foo"), is("foo"));
