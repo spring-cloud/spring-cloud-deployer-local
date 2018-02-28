@@ -71,6 +71,13 @@ public class LocalDeployerProperties {
 
 	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";
 
+	// looks like some windows systems uses 'Path' but processbuilder give it as 'PATH'
+	private static final String[] ENV_VARS_TO_INHERIT_DEFAULTS_WIN = { "TMP", "TEMP", "PATH", "Path",
+			AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON };
+
+	private static final String[] ENV_VARS_TO_INHERIT_DEFAULTS_OTHER = { "TMP", "LANG", "LANGUAGE", "LC_.*", "PATH",
+			AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON };
+
 	/**
 	 * Directory in which all created processes will run and create log files.
 	 */
@@ -85,7 +92,8 @@ public class LocalDeployerProperties {
 	 * Array of regular expression patterns for environment variables that
 	 * should be passed to launched applications.
 	 */
-	private String[] envVarsToInherit = {"TMP", "LANG", "LANGUAGE", "LC_.*", "PATH", AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON};
+	private String[] envVarsToInherit = LocalDeployerUtils.isWindows() ? ENV_VARS_TO_INHERIT_DEFAULTS_WIN
+			: ENV_VARS_TO_INHERIT_DEFAULTS_OTHER;
 
 	/**
 	 * The command to run java.
