@@ -43,7 +43,11 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.web.client.RestTemplate;
 
+import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -99,6 +103,53 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		}
 		else {
 			return super.randomName();
+		}
+	}
+
+	@Test
+	public void testEnvVariablesInheritedViaEnvEndpoint() {
+		if (useDocker) {
+			// would not expect to be able to check anything on docker
+			return;
+		}
+		Map<String, String> properties = new HashMap<>();
+		properties.put("management.security.enabled", "false");
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+		Timeout timeout = deploymentTimeout();
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+
+		Map<String, AppInstanceStatus> instances = appDeployer().status(deploymentId).getInstances();
+		String url = null;
+		if (instances.size() == 1) {
+			url = instances.entrySet().iterator().next().getValue().getAttributes().get("url");
+		}
+		String env = null;
+		if (url != null) {
+			RestTemplate template = new RestTemplate();
+			env = template.getForObject(url + "/env", String.class);
+		}
+
+		log.info("Undeploying {}...", deploymentId);
+
+		timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+
+		assertThat(url, notNullValue());
+		if (LocalDeployerUtils.isWindows()) {
+			// windows is weird, we may still get Path or PATH
+			assertThat(env, anyOf(containsString("\"Path\""), containsString("\"PATH\"")));
+		}
+		else {
+			assertThat(env, containsString("\"PATH\""));
 		}
 	}
 

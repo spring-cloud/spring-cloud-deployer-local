@@ -29,7 +29,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -87,7 +86,7 @@ public abstract class AbstractLocalDeployerSupport {
 		this.javaCommandBuilder = new JavaCommandBuilder(properties);
 		this.dockerCommandBuilder = new DockerCommandBuilder();
 	}
-	
+
 	protected String buildRemoteDebugInstruction(Map<String, String> deploymentProperties, String deploymentId,
 			int instanceIndex, int port) {
 		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
@@ -171,7 +170,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @return the process builder
 	 */
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-												 Map<String, String> appProperties, Optional<Integer> appInstanceNumber, String deploymentId) {
+												Map<String, String> appProperties, Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		Assert.notNull(appProperties, "Args must be set");
 		String[] commands = null;
@@ -200,7 +199,7 @@ public abstract class AbstractLocalDeployerSupport {
 			builder.environment().putAll(appInstanceEnvToUse);
 		}
 		retainEnvVars(builder.environment().keySet());
-		
+
 		if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
 			int portToUse = calculateDebugPort(request.getDeploymentProperties(), appInstanceNumber.orElseGet(() -> 0));
 			builder.command().add(1, this.buildRemoteDebugInstruction(
@@ -209,13 +208,13 @@ public abstract class AbstractLocalDeployerSupport {
 					appInstanceNumber.orElseGet(() -> 0),
 					portToUse));
 		}
-		
+
 		return builder;
 	}
 
 	protected void handleAppPropertiesPassing(AppDeploymentRequest request, Map<String, String> appProperties,
-											  Map<String, String> appInstanceEnvToUse,
-											  Map<String, String> appPropertiesToUse) {
+											Map<String, String> appInstanceEnvToUse,
+											Map<String, String> appPropertiesToUse) {
 		if (useSpringApplicationJson(request)) {
 			try {
 				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
@@ -322,7 +321,7 @@ public abstract class AbstractLocalDeployerSupport {
 		String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
 		return Integer.parseInt(basePort) + instanceIndex;
 	}
-	
+
 	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
 		return Optional.ofNullable(request.getDeploymentProperties().get(USE_SPRING_APPLICATION_JSON_KEY))
 				.map(Boolean::valueOf)
