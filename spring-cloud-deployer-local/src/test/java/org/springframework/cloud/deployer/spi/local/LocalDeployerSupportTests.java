@@ -38,19 +38,18 @@ import static org.junit.Assert.assertThat;
  */
 public class LocalDeployerSupportTests {
 
-	private Map<String, String> deploymentProperties;
 	private LocalDeployerProperties localDeployerProperties;
 	private AbstractLocalDeployerSupport localDeployerSupport;
 
 	@Before
 	public void setUp() {
-		deploymentProperties = new HashMap<>();
 		localDeployerProperties = new LocalDeployerProperties();
 		localDeployerSupport = new AbstractLocalDeployerSupport(this.localDeployerProperties) {};
 	}
 
 	@Test
 	public void testAppPropsAsCommandLineArgs() throws MalformedURLException {
+		Map<String, String>  deploymentProperties = new HashMap<>();
 		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
 		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest(deploymentProperties);
 
@@ -93,7 +92,6 @@ public class LocalDeployerSupportTests {
 		appProperties.put("test.foo", "foo");
 		appProperties.put("test.bar", "bar");
 		AppDefinition definition = new AppDefinition("randomApp", appProperties);
-		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
 		return new AppDeploymentRequest(definition, testResource(), depProps);
 	}
 
