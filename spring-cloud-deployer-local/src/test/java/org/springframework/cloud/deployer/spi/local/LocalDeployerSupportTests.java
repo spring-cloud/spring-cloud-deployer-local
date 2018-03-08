@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,39 +48,16 @@ public class LocalDeployerSupportTests {
 	}
 
 	@Test
-	public void testAppPropsAsCommandLineArgs() throws MalformedURLException {
-		Map<String, String>  deploymentProperties = new HashMap<>();
-		deploymentProperties.put("spring.cloud.deployer.local.use-spring-application-json", "false");
-		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest(deploymentProperties);
-
-		HashMap<String, String> envVarsToUse = new HashMap<>();
-		HashMap<String, String> appPropsToUse = new HashMap<>();
-		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest,
-				appDeploymentRequest.getDefinition().getProperties(),
-				envVarsToUse,
-				appPropsToUse);
-
-		assertThat(appPropsToUse.size(), is(2));
-		assertThat(envVarsToUse.size(), is(0));
-		assertThat(appPropsToUse.get("test.foo"), is("foo"));
-		assertThat(appPropsToUse.get("test.bar"), is("bar"));
-	}
-
-	@Test
 	public void testAppPropsAsSAJ() throws MalformedURLException {
 		AppDeploymentRequest appDeploymentRequest = createAppDeploymentRequest();
 
-		HashMap<String, String> envVarsToUse = new HashMap<>();
-		HashMap<String, String> appPropsToUse = new HashMap<>();
-		localDeployerSupport.handleAppPropertiesPassing(appDeploymentRequest,
-				appDeploymentRequest.getDefinition().getProperties(),
-				envVarsToUse,
-				appPropsToUse);
+		HashMap<String, String> envVarsToUse = new HashMap<>(appDeploymentRequest.getDefinition().getProperties());
+		Map<String, String> environmentVariables = localDeployerSupport.formatApplicationProperties(appDeploymentRequest,
+				envVarsToUse);
 
-		assertThat(appPropsToUse.size(), is(0));
-		assertThat(envVarsToUse.size(), is(1));
-		assertThat(envVarsToUse.keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
-		assertThat(envVarsToUse.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"test.foo\":\"foo\",\"test.bar\":\"bar\"}"));
+		assertThat(environmentVariables.size(), is(1));
+		assertThat(environmentVariables.keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
+		assertThat(environmentVariables.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"test.foo\":\"foo\",\"test.bar\":\"bar\"}"));
 	}
 
 	protected AppDeploymentRequest createAppDeploymentRequest() throws MalformedURLException {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package org.springframework.cloud.deployer.spi.local;
  * Deployer utility functions.
  *
  * @author Janne Valkealahti
+ * @author Michael Minella
  *
  */
 public class LocalDeployerUtils {
@@ -30,16 +31,8 @@ public class LocalDeployerUtils {
 	 * @return true if windows detected
 	 */
 	protected static boolean isWindows() {
-		String osName = null;
-		try {
-			osName = System.getProperty("os.name");
-		} catch (Exception e) {
-		}
-		if (osName == null) {
-			return false;
-		}
-		else {
-			return osName.toLowerCase().startsWith("windows");
-		}
+		String osName = System.getProperty("os.name");
+
+		return osName != null && osName.toLowerCase().startsWith("windows");
 	}
 }

@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -40,6 +40,7 @@ import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.util.RuntimeVersionUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
+import org.springframework.util.SocketUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -52,10 +53,11 @@ import org.springframework.web.client.RestTemplate;
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
+ * @author Michael Minella
  */
 public abstract class AbstractLocalDeployerSupport {
 
-	public static final String USE_SPRING_APPLICATION_JSON_KEY =
+	private static final String USE_SPRING_APPLICATION_JSON_KEY =
 			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
 
 	public static final String SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON";
@@ -71,6 +73,8 @@ public abstract class AbstractLocalDeployerSupport {
 	private final JavaCommandBuilder javaCommandBuilder;
 
 	private final DockerCommandBuilder dockerCommandBuilder;
+
+	private static final int DEFAULT_SERVER_PORT = 8080;
 
 	private String[] envVarsSetByDeployer =
 			{"SPRING_CLOUD_APPLICATION_GUID", "SPRING_APPLICATION_INDEX", "INSTANCE_INDEX"};
@@ -91,15 +95,18 @@ public abstract class AbstractLocalDeployerSupport {
 			int instanceIndex, int port) {
 		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
 		StringBuilder debugCommandBuilder = new StringBuilder();
-		String debugCommand;
+
 		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
 				deploymentId, instanceIndex, port);
+
 		debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
 		debugCommandBuilder.append(ds.trim());
 		debugCommandBuilder.append(",address=");
 		debugCommandBuilder.append(port);
-		debugCommand = debugCommandBuilder.toString();
+
+		String debugCommand = debugCommandBuilder.toString();
 		logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
+
 		if (ds.equals("y")) {
 			logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote "
 					+ "debugging session is established.");
@@ -162,28 +169,29 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Builds the process builder.
+	 * Builds the process builder.  Application properties are expected to be calculated
+	 * prior to this method.  No additional consolidation of application properties is
+	 * done while creating the {@code ProcessBuilder}.
 	 *
 	 * @param request the request
 	 * @param appInstanceEnv the instance environment variables
-	 * @param appProperties the app properties
 	 * @return the process builder
 	 */
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-												Map<String, String> appProperties, Optional<Integer> appInstanceNumber, String deploymentId) {
+												Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
-		Assert.notNull(appProperties, "Args must be set");
-		String[] commands = null;
-		Map<String, String> appInstanceEnvToUse = new HashMap<>(appInstanceEnv);
-		Map<String, String> appPropertiesToUse = new HashMap<>();
-		handleAppPropertiesPassing(request, appProperties, appInstanceEnvToUse, appPropertiesToUse);
+		String[] commands;
+
+		Map<String, String> appPropertiesToUse =
+				formatApplicationProperties(request, appInstanceEnv);
+
 		if (request.getResource() instanceof DockerResource) {
 			commands = this.dockerCommandBuilder.buildExecutionCommand(request,
-					appInstanceEnvToUse, appPropertiesToUse, appInstanceNumber);
+					appPropertiesToUse, appInstanceNumber);
 		}
 		else {
 			commands = this.javaCommandBuilder.buildExecutionCommand(request,
-					appInstanceEnvToUse, appPropertiesToUse, appInstanceNumber);
+					appPropertiesToUse, appInstanceNumber);
 		}
 
 		// tweak escaping double quotes needed for windows
@@ -194,45 +202,66 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		ProcessBuilder builder = new ProcessBuilder(commands);
+
 		if (!(request.getResource() instanceof DockerResource)) {
-			builder.environment().putAll(appInstanceEnv);
-			builder.environment().putAll(appInstanceEnvToUse);
+			builder.environment().putAll(appPropertiesToUse);
 		}
+
 		retainEnvVars(builder.environment().keySet());
 
 		if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
-			int portToUse = calculateDebugPort(request.getDeploymentProperties(), appInstanceNumber.orElseGet(() -> 0));
-			builder.command().add(1, this.buildRemoteDebugInstruction(
+
+			int portToUse = calculateDebugPort(request.getDeploymentProperties(), appInstanceNumber.orElse(0));
+
+			String debugInstruction = this.buildRemoteDebugInstruction(
 					request.getDeploymentProperties(),
 					deploymentId,
-					appInstanceNumber.orElseGet(() -> 0),
-					portToUse));
+					appInstanceNumber.orElse(0),
+					portToUse);
+
+			if(request.getResource() instanceof DockerResource) {
+				builder.command().add(2, "-e");
+				builder.command().add(3, "JAVA_TOOL_OPTIONS=\""+ debugInstruction + "\"");			}
+			else {
+				builder.command().add(1, debugInstruction);
+			}
 		}
+
+		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
 
 		return builder;
 	}
 
-	protected void handleAppPropertiesPassing(AppDeploymentRequest request, Map<String, String> appProperties,
-											Map<String, String> appInstanceEnvToUse,
-											Map<String, String> appPropertiesToUse) {
+	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
+											Map<String, String> appInstanceEnvToUse) {
+		Map<String, String> applicationPropertiesToUse =
+				new HashMap<>(appInstanceEnvToUse);
+
 		if (useSpringApplicationJson(request)) {
 			try {
 				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
-				Map<String, String> localApplicationProperties = new HashMap<>(appProperties);
-				if(localApplicationProperties.containsKey(SPRING_APPLICATION_JSON)){
-					localApplicationProperties.putAll(OBJECT_MAPPER.readValue(appProperties.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
-					localApplicationProperties.remove(SPRING_APPLICATION_JSON);
+				if(applicationPropertiesToUse.containsKey(SPRING_APPLICATION_JSON)){
+					applicationPropertiesToUse.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
+					applicationPropertiesToUse.remove(SPRING_APPLICATION_JSON);
 				}
-				appInstanceEnvToUse.putAll(Collections.singletonMap(
-						SPRING_APPLICATION_JSON, OBJECT_MAPPER.writeValueAsString(localApplicationProperties)));
 			}
 			catch (IOException e) {
-				throw new RuntimeException(e);
+				throw new IllegalArgumentException("Unable to read existing SPRING_APPLICATION_JSON to merge properties", e);
+			}
+
+			try {
+				String saj = OBJECT_MAPPER.writeValueAsString(applicationPropertiesToUse);
+
+				applicationPropertiesToUse = new HashMap<>(1);
+
+				applicationPropertiesToUse.put(SPRING_APPLICATION_JSON, saj);
+			}
+			catch (JsonProcessingException e) {
+				throw new IllegalArgumentException("Unable to create SPRING_APPLICATION_JSON from application properties", e);
 			}
 		}
-		else {
-			appPropertiesToUse.putAll(appProperties);
-		}
+
+		return applicationPropertiesToUse;
 	}
 
 	/**
@@ -323,9 +352,16 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
-		return Optional.ofNullable(request.getDeploymentProperties().get(USE_SPRING_APPLICATION_JSON_KEY))
-				.map(Boolean::valueOf)
-				.orElse(this.properties.isUseSpringApplicationJson());
+		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.properties.isUseSpringApplicationJson();
+	}
+
+	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort, Map<String, String> args) {
+		int port = useDynamicPort ? SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT)
+				: Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
+		if (useDynamicPort) {
+			args.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
+		}
+		return port;
 	}
 
 	protected interface Instance {

@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
@@ -40,7 +39,6 @@ import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.deployer.spi.task.TaskStatus;
-import org.springframework.util.SocketUtils;
 
 /**
  * A {@link TaskLauncher} implementation that spins off a new JVM process per task launch.
@@ -51,6 +49,7 @@ import org.springframework.util.SocketUtils;
  * @author Janne Valkealahti
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
+ * @author Michael Minella
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -60,11 +59,9 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private static final String SERVER_PORT_KEY = "server.port";
 
-	final String SERVER_PORT_KEY_PREFIX = "--" + SERVER_PORT_KEY + "=";
+	private final String SERVER_PORT_KEY_PREFIX = "--" + SERVER_PORT_KEY + "=";
 
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
-
-	private static final int DEFAULT_SERVER_PORT = 8080;
 
 	private final Map<String, TaskInstance> running = new ConcurrentHashMap<>();
 
@@ -79,62 +76,49 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	@Override
 	public String launch(AppDeploymentRequest request) {
-		if (this.logPathRoot == null) {
-			try {
-				this.logPathRoot = Files.createTempDirectory(getLocalDeployerProperties().getWorkingDirectoriesRoot(),
-						"spring-cloud-dataflow-");
-			}
-			catch (IOException e) {
-				throw new IllegalStateException(e);
-			}
-		}
+
 		String taskLaunchId = request.getDefinition().getName() + "-" + UUID.randomUUID().toString();
-		boolean isServerPortKeyonArgs = isServerPortKeyPresentOnArgs(request);
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY)
-				&& !isServerPortKeyonArgs;
+
 		HashMap<String, String> args = new HashMap<>();
 		args.putAll(request.getDefinition().getProperties());
 		args.put(JMX_DEFAULT_DOMAIN_KEY, taskLaunchId);
 		args.put("endpoints.shutdown.enabled", "true");
 		args.put("endpoints.jmx.unique-names", "true");
+
 		try {
-			String qualifiedName = request.getDefinition().getName() + "-" + System.currentTimeMillis();
-			Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
-			if (!Files.exists(dir)) {
-				Files.createDirectory(dir);
-				dir.toFile().deleteOnExit();
-			}
-			Path workDir = Files.createDirectory(Paths.get(dir.toFile().getAbsolutePath(),
-					taskLaunchId));
-			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
-				workDir.toFile().deleteOnExit();
-			}
-			int port;
-			if(useDynamicPort) {
-				port = SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT);
-			}
-			else if(isServerPortKeyonArgs){
-				port = getServerPortArg(request);
-			} else {
-				port = Integer.parseInt(request.getDefinition().getProperties().get(SERVER_PORT_KEY));
-			}
-			if (useDynamicPort) {
-				args.put(SERVER_PORT_KEY, String.valueOf(port));
-			}
-			Map<String, String> appInstanceEnv = new HashMap<>();
-			ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.empty(), taskLaunchId);
+
+			Path dir = createLogDir(request);
+
+			Path workDir = createWorkingDir(taskLaunchId, dir);
+
+			boolean useDynamicPort = isDynamicPort(request);
+
+			int port = calcServerPort(request, useDynamicPort, args);
+
+			ProcessBuilder builder = buildProcessBuilder(request, args, Optional.empty(), taskLaunchId);
+
 			TaskInstance instance = new TaskInstance(builder, workDir, port);
+
 			running.put(taskLaunchId, instance);
+
 			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
 				instance.stdout.deleteOnExit();
 				instance.stderr.deleteOnExit();
 			}
+
 			logger.info("launching task {}\n   Logs will be in {}", taskLaunchId, workDir);
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Exception trying to launch " + request, e);
 		}
+
 		return taskLaunchId;
+	}
+
+	private boolean isDynamicPort(AppDeploymentRequest request) {
+		boolean isServerPortKeyonArgs = isServerPortKeyPresentOnArgs(request);
+		return !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY)
+				&& !isServerPortKeyonArgs;
 	}
 
 	@Override
@@ -175,6 +159,38 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		for (String taskLaunchId : running.keySet()) {
 			cancel(taskLaunchId);
 		}
+	}
+
+	private Path createWorkingDir(String taskLaunchId, Path dir) throws IOException {
+
+		Path workDir = Files.createDirectory(Paths.get(dir.toFile().getAbsolutePath(),
+				taskLaunchId));
+
+		if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
+			workDir.toFile().deleteOnExit();
+		}
+
+		return workDir;
+	}
+
+	private Path createLogDir(AppDeploymentRequest request) throws IOException {
+
+		if (this.logPathRoot == null) {
+			this.logPathRoot =
+					Files.createTempDirectory(getLocalDeployerProperties().getWorkingDirectoriesRoot(),
+							request.getDefinition().getName());
+		}
+
+		String qualifiedName = request.getDefinition().getName() + "-" + System.currentTimeMillis();
+
+		Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
+
+		if (!Files.exists(dir)) {
+			Files.createDirectory(dir);
+			dir.toFile().deleteOnExit();
+		}
+
+		return dir;
 	}
 
 	private static class TaskInstance implements Instance {
@@ -273,17 +289,6 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 					result = true;
 					break;
 				}
-		}
-		return result;
-	}
-
-	private int getServerPortArg(AppDeploymentRequest request) {
-		int result = 0;
-		for (String argument : request.getCommandlineArguments()) {
-			if (argument.startsWith(SERVER_PORT_KEY_PREFIX)) {
-				result = Integer.valueOf(argument.substring(SERVER_PORT_KEY_PREFIX.length()));
-				break;
-			}
 		}
 		return result;
 	}
