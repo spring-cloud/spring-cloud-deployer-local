@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
@@ -45,7 +44,6 @@ import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
-import org.springframework.util.SocketUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -59,6 +57,7 @@ import org.springframework.util.StringUtils;
  * @author Patrick Peralta
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
+ * @author Michael Minella
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
@@ -66,13 +65,11 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalAppDeployer.class);
 
-	protected static final String SERVER_PORT_KEY = "server.port";
+	static final String SERVER_PORT_KEY = "server.port";
 
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
 	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
-
-	private static final int DEFAULT_SERVER_PORT = 8080;
 
 	private final Map<String, List<AppInstance>> running = new ConcurrentHashMap<>();
 
@@ -93,52 +90,60 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public String deploy(AppDeploymentRequest request) {
+
 		String group = request.getDeploymentProperties().get(GROUP_PROPERTY_KEY);
 		String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
-		DeploymentState state = status(deploymentId).getState();
-		if (state != DeploymentState.unknown) {
-			throw new IllegalStateException(String.format("App with deploymentId [%s] is already deployed with state [%s]",
-					deploymentId, state));
-		}
+
+		validateStatus(deploymentId);
+
 		List<AppInstance> processes = new ArrayList<>();
 		running.put(deploymentId, processes);
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
-		HashMap<String, String> args = new HashMap<>();
-		args.putAll(request.getDefinition().getProperties());
 
-		args.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
+		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
+
+		// consolidatedAppProperties is a Map of all application properties to be used by
+		// the app being launched.  These values should end up as environment variables
+		// either explicitly or as a SPRING_APPLICATION_JSON value.
+		HashMap<String, String> consolidatedAppProperties = new HashMap<>(request.getDefinition().getProperties());
+
+		consolidatedAppProperties.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
+
 		if (!request.getDefinition().getProperties().containsKey(ENDPOINTS_SHUTDOWN_ENABLED_KEY)) {
-			args.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
+			consolidatedAppProperties.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
 		}
-		args.put("endpoints.jmx.unique-names", "true");
+
+		consolidatedAppProperties.put("endpoints.jmx.unique-names", "true");
+
 		if (group != null) {
-			args.put("spring.cloud.application.group", group);
+			consolidatedAppProperties.put("spring.cloud.application.group", group);
 		}
+
 		try {
-			Path deploymentGroupDir = Paths.get(logPathRoot.toFile().getAbsolutePath(),
-					group + "-" + System.currentTimeMillis());
-			if (!Files.exists(deploymentGroupDir)) {
-				Files.createDirectory(deploymentGroupDir);
-				deploymentGroupDir.toFile().deleteOnExit();
-			}
-			Path workDir = Files
-					.createDirectory(Paths.get(deploymentGroupDir.toFile().getAbsolutePath(), deploymentId));
-			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
-				workDir.toFile().deleteOnExit();
-			}
+			Path deploymentGroupDir = createLogDir(group);
+
+			Path workDir = createWorkingDir(deploymentId, deploymentGroupDir);
+
 			String countProperty = request.getDeploymentProperties().get(COUNT_PROPERTY_KEY);
 			int count = (StringUtils.hasText(countProperty)) ? Integer.parseInt(countProperty) : 1;
+
 			for (int i = 0; i < count; i++) {
-				int port = useDynamicPort ? SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT)
-						: Integer.parseInt(request.getDefinition().getProperties().get(SERVER_PORT_KEY));
-				if (useDynamicPort) {
-					args.put(SERVER_PORT_KEY, String.valueOf(port));
-				}
-				Map<String, String> appInstanceEnv = new HashMap<>();
-				AppInstance instance = new AppInstance(deploymentId, i, appInstanceEnv, port);
-				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, args, Optional.of(i), deploymentId).inheritIO();
+
+				// This Map is the consolidated application properties *for the instance*
+				// to be deployed in this iteration
+				Map<String, String> appInstanceEnv = new HashMap<>(consolidatedAppProperties);
+
+				int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
+
+				appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
+				appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
+				appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+
+				AppInstance instance = new AppInstance(deploymentId, i, port);
+
+				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(i), deploymentId).inheritIO();
 
 				builder.directory(workDir.toFile());
+
 				if (this.shouldInheritLogging(request)){
 					instance.start(builder, workDir);
 					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
@@ -147,6 +152,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 					instance.start(builder, workDir, getLocalDeployerProperties().isDeleteFilesOnExit());
 					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId, i, workDir);
 				}
+
 				processes.add(instance);
 			}
 		}
@@ -155,7 +161,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 		return deploymentId;
 	}
-	
+
 	@Override
 	public void undeploy(String id) {
 		List<AppInstance> processes = running.get(id);
@@ -177,13 +183,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	public AppStatus status(String id) {
 		List<AppInstance> instances = running.get(id);
 		AppStatus.Builder builder = AppStatus.of(id);
+
 		if (instances != null) {
 			for (AppInstance instance : instances) {
 				builder.with(instance);
 			}
 		}
-		AppStatus status = builder.build();
-		return status;
+
+		return builder.build();
 	}
 
 	@Override
@@ -197,26 +204,33 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			undeploy(deploymentId);
 		}
 	}
-	
-	protected String buildRemoteDebugInstruction(Map<String, String> deploymentProperties, String deploymentId,
-			int instanceIndex, int port) {
-		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
-		StringBuilder debugCommandBuilder = new StringBuilder();
-		String debugCommand;
-		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
-				deploymentId, instanceIndex, port);
-		debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
-		debugCommandBuilder.append(ds.trim());
-		debugCommandBuilder.append(",address=");
-		debugCommandBuilder.append(port);
-		debugCommand = debugCommandBuilder.toString();
-		logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
-		if (ds.equals("y")) {
-			logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote "
-					+ "debugging session is established.");
-		}
 
-		return debugCommand;
+	private Path createWorkingDir(String deploymentId, Path deploymentGroupDir) throws IOException {
+		Path workDir = Files
+				.createDirectory(Paths.get(deploymentGroupDir.toFile().getAbsolutePath(), deploymentId));
+		if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
+			workDir.toFile().deleteOnExit();
+		}
+		return workDir;
+	}
+
+	private Path createLogDir(String group) throws IOException {
+		Path deploymentGroupDir = Paths.get(logPathRoot.toFile().getAbsolutePath(),
+				group + "-" + System.currentTimeMillis());
+		if (!Files.exists(deploymentGroupDir)) {
+			Files.createDirectory(deploymentGroupDir);
+//			deploymentGroupDir.toFile().deleteOnExit();
+		}
+		return deploymentGroupDir;
+	}
+
+	private void validateStatus(String deploymentId) {
+		DeploymentState state = status(deploymentId).getState();
+
+		if (state != DeploymentState.unknown) {
+			throw new IllegalStateException(String.format("App with deploymentId [%s] is already deployed with state [%s]",
+					deploymentId, state));
+		}
 	}
 
 	/**
@@ -251,16 +265,13 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		private final Map<String, String> attributes = new TreeMap<>();
 
-		private AppInstance(String deploymentId, int instanceNumber, Map<String, String> appInstanceEnv, int port) throws IOException {
+		private AppInstance(String deploymentId, int instanceNumber, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
 			attributes.put("port", Integer.toString(port));
 			attributes.put("guid", Integer.toString(port));
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 			attributes.put("url", baseUrl.toString());
-			appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(instanceNumber));
-			appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(instanceNumber));
-			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
 		}
 
 		@Override
