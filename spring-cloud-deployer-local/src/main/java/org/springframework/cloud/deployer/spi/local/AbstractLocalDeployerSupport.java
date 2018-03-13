@@ -18,15 +18,9 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -142,33 +136,6 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Retain the environment variable strings in the provided set indicated by
-	 * {@link LocalDeployerProperties#getEnvVarsToInherit}.
-	 * This assumes that the provided set can be modified.
-	 *
-	 * @param vars set of environment variable strings
-	 */
-	protected void retainEnvVars(Set<String> vars) {
-
-		List<String> patterns = new ArrayList<>(Arrays.asList(getLocalDeployerProperties().getEnvVarsToInherit()));
-		patterns.addAll(Arrays.asList(this.envVarsSetByDeployer));
-
-		for (Iterator<String> iterator = vars.iterator(); iterator.hasNext();) {
-			String var = iterator.next();
-			boolean retain = false;
-			for (String pattern : patterns) {
-				if (Pattern.matches(pattern, var)) {
-					retain = true;
-					break;
-				}
-			}
-			if (!retain) {
-				iterator.remove();
-			}
-		}
-	}
-
-	/**
 	 * Builds the process builder.  Application properties are expected to be calculated
 	 * prior to this method.  No additional consolidation of application properties is
 	 * done while creating the {@code ProcessBuilder}.
@@ -206,8 +173,6 @@ public abstract class AbstractLocalDeployerSupport {
 		if (!(request.getResource() instanceof DockerResource)) {
 			builder.environment().putAll(appPropertiesToUse);
 		}
-
-		retainEnvVars(builder.environment().keySet());
 
 		if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
 
