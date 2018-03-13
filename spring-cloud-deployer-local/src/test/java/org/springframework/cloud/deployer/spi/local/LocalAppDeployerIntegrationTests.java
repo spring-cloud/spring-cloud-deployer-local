@@ -16,6 +16,9 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,7 +27,6 @@ import java.util.Map.Entry;
 import java.util.UUID;
 
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,10 +71,13 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Mark Fisher
  * @author Oleg Zhurakousky
  * @author Janne Valkealahti
+ * @author Ilayaperumal Gopinathan
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
 public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegrationTests {
+
+	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";
 
 	@Autowired
 	private AppDeployer appDeployer;
@@ -89,7 +94,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	protected Resource testApplication() {
 		if (useDocker) {
 			log.info("Using Docker image for tests");
-			return new DockerResource("springcloud/spring-cloud-deployer-spi-test-app:latest");
+			return new DockerResource(TESTAPP_DOCKER_IMAGE_NAME);
 		}
 		return super.testApplication();
 	}
@@ -199,8 +204,6 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	}
 
 	@Test
-	@Ignore("This test needs to be fixed for docker.  Also, I believe the Windows " +
-			"version of this command will have quoting issues.")
 	public void testInDebugModeWithSuspended() throws Exception {
 		Map<String, String> properties = new HashMap<>();
 		AppDefinition definition = new AppDefinition(randomName(), properties);
@@ -215,8 +218,25 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		String deploymentId = deployer.deploy(request);
 		Thread.sleep(5000);
 		AppStatus appStatus = deployer.status(deploymentId);
-		assertEquals("deploying", appStatus.toString());
+		if (resource instanceof DockerResource) {
+			try {
+				String containerId = getCommandOutput("docker ps -q --filter ancestor="+ TESTAPP_DOCKER_IMAGE_NAME);
+				String logOutput = getCommandOutput("docker logs "+ containerId);
+				assertTrue(logOutput.contains("Listening for transport dt_socket at address: 9999"));
+			} catch (IOException e) {
+			}
+		}
+		else {
+			assertEquals("deploying", appStatus.toString());
+		}
+
 		deployer.undeploy(deploymentId);
+	}
+
+	private String getCommandOutput(String cmd) throws IOException {
+		Process process = Runtime.getRuntime().exec(cmd);
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+		return stdInput.lines().findFirst().get();
 	}
 
 	@Configuration
