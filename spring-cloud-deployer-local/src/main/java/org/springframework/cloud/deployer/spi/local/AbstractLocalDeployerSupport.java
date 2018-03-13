@@ -186,7 +186,7 @@ public abstract class AbstractLocalDeployerSupport {
 
 			if(request.getResource() instanceof DockerResource) {
 				builder.command().add(2, "-e");
-				builder.command().add(3, "JAVA_OPTS="+ debugInstruction);
+				builder.command().add(3, "JAVA_TOOL_OPTIONS="+ debugInstruction);
 			}
 			else {
 				builder.command().add(1, debugInstruction);
