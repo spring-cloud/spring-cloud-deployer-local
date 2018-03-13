@@ -31,13 +31,7 @@ public class LocalDeployerUtils {
 	 * @return true if windows detected
 	 */
 	protected static boolean isWindows() {
-		String osName = null;
-
-		try {
-			osName = System.getProperty("os.name");
-		}
-		catch (Exception e) {
-		}
+		String osName = System.getProperty("os.name");
 
 		return osName != null && osName.toLowerCase().startsWith("windows");
 	}

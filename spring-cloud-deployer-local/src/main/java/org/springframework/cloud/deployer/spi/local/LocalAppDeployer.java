@@ -44,6 +44,7 @@ import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
+import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
@@ -219,7 +220,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				group + "-" + System.currentTimeMillis());
 		if (!Files.exists(deploymentGroupDir)) {
 			Files.createDirectory(deploymentGroupDir);
-//			deploymentGroupDir.toFile().deleteOnExit();
+			deploymentGroupDir.toFile().deleteOnExit();
 		}
 		return deploymentGroupDir;
 	}
@@ -227,10 +228,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	private void validateStatus(String deploymentId) {
 		DeploymentState state = status(deploymentId).getState();
 
-		if (state != DeploymentState.unknown) {
-			throw new IllegalStateException(String.format("App with deploymentId [%s] is already deployed with state [%s]",
-					deploymentId, state));
-		}
+		Assert.state(state == DeploymentState.unknown,
+				String.format("App with deploymentId [%s] is already deployed with state [%s]",
+						deploymentId, state));
 	}
 
 	/**

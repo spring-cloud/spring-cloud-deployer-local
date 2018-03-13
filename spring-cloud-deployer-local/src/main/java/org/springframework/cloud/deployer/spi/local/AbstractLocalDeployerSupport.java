@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -243,15 +244,20 @@ public abstract class AbstractLocalDeployerSupport {
 					applicationPropertiesToUse.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
 					applicationPropertiesToUse.remove(SPRING_APPLICATION_JSON);
 				}
+			}
+			catch (IOException e) {
+				throw new IllegalArgumentException("Unable to read existing SPRING_APPLICATION_JSON to merge properties", e);
+			}
 
+			try {
 				String saj = OBJECT_MAPPER.writeValueAsString(applicationPropertiesToUse);
 
 				applicationPropertiesToUse = new HashMap<>(1);
 
 				applicationPropertiesToUse.put(SPRING_APPLICATION_JSON, saj);
 			}
-			catch (IOException e) {
-				throw new RuntimeException(e);
+			catch (JsonProcessingException e) {
+				throw new IllegalArgumentException("Unable to create SPRING_APPLICATION_JSON from application properties", e);
 			}
 		}
 
@@ -346,14 +352,7 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
-		Map<String, String> applicationProperties = request.getDefinition().getProperties();
-
-		if(applicationProperties.containsKey(USE_SPRING_APPLICATION_JSON_KEY)) {
-			return true;
-		}
-		else {
-			return this.properties.isUseSpringApplicationJson();
-		}
+		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.properties.isUseSpringApplicationJson();
 	}
 
 	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort, Map<String, String> args) {
