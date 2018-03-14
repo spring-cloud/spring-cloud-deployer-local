@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
@@ -48,7 +49,8 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 /**
- * An {@link AppDeployer} implementation that spins off a new JVM process per app instance.
+ * An {@link AppDeployer} implementation that spins off a new JVM process per app
+ * instance.
  *
  * @author Eric Bottard
  * @author Marius Bogoevici
@@ -62,15 +64,11 @@ import org.springframework.util.StringUtils;
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
-	private Path logPathRoot;
-
 	private static final Logger logger = LoggerFactory.getLogger(LocalAppDeployer.class);
-
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
-
 	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
-
 	private final Map<String, List<AppInstance>> running = new ConcurrentHashMap<>();
+	private Path logPathRoot;
 
 	/**
 	 * Instantiates a new local app deployer.
@@ -87,6 +85,46 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
+	/**
+	 * Returns the process exit value. We explicitly use Integer instead of int to indicate
+	 * that if {@code NULL} is returned, the process is still running.
+	 * @param process the process
+	 * @return the process exit value or {@code NULL} if process is still alive
+	 */
+	private static Integer getProcessExitValue(Process process) {
+		try {
+			return process.exitValue();
+		}
+		catch (IllegalThreadStateException e) {
+			// process is still alive
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the local process pid if available. This should be a safe workaround for unix
+	 * systems where reflection can be used to get pid. More reliable way should land with
+	 * jdk9.
+	 *
+	 * @param p the process
+	 * @return the local process pid
+	 */
+	private static synchronized int getLocalProcessPid(Process p) {
+		int pid = 0;
+		try {
+			if (p.getClass().getName().equals("java.lang.UNIXProcess")) {
+				Field f = p.getClass().getDeclaredField("pid");
+				f.setAccessible(true);
+				pid = f.getInt(p);
+				f.setAccessible(false);
+			}
+		}
+		catch (Exception e) {
+			pid = 0;
+		}
+		return pid;
+	}
+
 	@Override
 	public String deploy(AppDeploymentRequest request) {
 
@@ -101,7 +139,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 
 		// consolidatedAppProperties is a Map of all application properties to be used by
-		// the app being launched.  These values should end up as environment variables
+		// the app being launched. These values should end up as environment variables
 		// either explicitly or as a SPRING_APPLICATION_JSON value.
 		HashMap<String, String> consolidatedAppProperties = new HashMap<>(request.getDefinition().getProperties());
 
@@ -139,17 +177,20 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				AppInstance instance = new AppInstance(deploymentId, i, port);
 
-				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(i), deploymentId).inheritIO();
+				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(i), deploymentId)
+						.inheritIO();
 
 				builder.directory(workDir.toFile());
 
-				if (this.shouldInheritLogging(request)){
+				if (this.shouldInheritLogging(request)) {
 					instance.start(builder, workDir);
-					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
+					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.",
+							deploymentId, i);
 				}
 				else {
 					instance.start(builder, workDir, getLocalDeployerProperties().isDeleteFilesOnExit());
-					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId, i, workDir);
+					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId,
+							i, workDir);
 				}
 
 				processes.add(instance);
@@ -232,13 +273,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	}
 
 	/**
-	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by
-	 * checking deployment properties.
+	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by checking
+	 * deployment properties.
 	 */
-	private boolean shouldInheritLogging(AppDeploymentRequest request){
+	private boolean shouldInheritLogging(AppDeploymentRequest request) {
 		boolean inheritLogging = false;
-		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
-			inheritLogging = Boolean.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
+		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)) {
+			inheritLogging = Boolean
+					.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
 		}
 		return inheritLogging;
 	}
@@ -250,18 +292,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		private final int instanceNumber;
 
 		private final URL baseUrl;
-
-		private int pid;
-
-		private Process process;
-
-		private File workFile;
-
-		private File stdout;
-
-		private File stderr;
-
 		private final Map<String, String> attributes = new TreeMap<>();
+		private int pid;
+		private Process process;
+		private File workFile;
+		private File stdout;
+		private File stderr;
 
 		private AppInstance(String deploymentId, int instanceNumber, int port) throws IOException {
 			this.deploymentId = deploymentId;
@@ -321,21 +357,29 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 
 		/**
-		 * Will start the process while redirecting 'out' and 'err' streams
-		 * to the 'out' and 'err' streams of this process.
+		 * Will start the process while redirecting 'out' and 'err' streams to the 'out' and 'err'
+		 * streams of this process.
 		 */
 		private void start(ProcessBuilder builder, Path workDir) throws IOException {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Local App Deployer Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
 			this.workFile = workDir.toFile();
 			this.attributes.put("working.dir", this.workFile.getAbsolutePath());
 			this.process = builder.start();
-		    this.pid = getLocalProcessPid(this.process);
-		    if (pid > 0) {
+			this.pid = getLocalProcessPid(this.process);
+			if (pid > 0) {
 				// add pid if we got it
 				attributes.put("pid", Integer.toString(pid));
 			}
 		}
 
 		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Local App Deployer Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
 			String workDirPath = workDir.toFile().getAbsolutePath();
 
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
@@ -353,45 +397,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 			this.start(builder, workDir);
 		}
-	}
-
-	/**
-	 * Returns the process exit value. We explicitly use Integer instead of int
-	 * to indicate that if {@code NULL} is returned, the process is still running.
-	 * @param process the process
-	 * @return the process exit value or {@code NULL} if process is still alive
-	 */
-	private static Integer getProcessExitValue(Process process) {
-		try {
-			return process.exitValue();
-		}
-		catch (IllegalThreadStateException e) {
-			// process is still alive
-			return null;
-		}
-	}
-
-	/**
-	 * Gets the local process pid if available. This should be a safe workaround
-	 * for unix systems where reflection can be used to get pid. More reliable
-	 * way should land with jdk9.
-	 *
-	 * @param p the process
-	 * @return the local process pid
-	 */
-	private static synchronized int getLocalProcessPid(Process p) {
-		int pid = 0;
-		try {
-			if (p.getClass().getName().equals("java.lang.UNIXProcess")) {
-				Field f = p.getClass().getDeclaredField("pid");
-				f.setAccessible(true);
-				pid = f.getInt(p);
-				f.setAccessible(false);
-			}
-		} catch (Exception e) {
-			pid = 0;
-		}
-		return pid;
 	}
 
 }

@@ -213,6 +213,10 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 			this.process = builder.start();
 			this.workDir = workDir.toFile();
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
+			if (logger.isDebugEnabled()) {
+				logger.debug("Local Task Launcher Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
 		}
 
 		@Override
