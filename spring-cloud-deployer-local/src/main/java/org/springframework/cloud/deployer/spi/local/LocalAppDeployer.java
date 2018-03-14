@@ -80,7 +80,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	public LocalAppDeployer(LocalDeployerProperties properties) {
 		super(properties);
 		try {
-			this.logPathRoot = Files.createTempDirectory(properties.getWorkingDirectoriesRoot(), "spring-cloud-dataflow-");
+			this.logPathRoot = Files.createTempDirectory(properties.getWorkingDirectoriesRoot(), "spring-cloud-deployer-");
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Could not create workdir root: " + properties.getWorkingDirectoriesRoot(), e);

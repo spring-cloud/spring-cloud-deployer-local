@@ -177,7 +177,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 							request.getDefinition().getName());
 		}
 
-		String qualifiedName = request.getDefinition().getName() + "-" + System.currentTimeMillis();
+		String qualifiedName = Long.toString(System.currentTimeMillis());
 
 		Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
 
