@@ -17,20 +17,34 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import org.hamcrest.Matchers;
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
+import org.springframework.cloud.deployer.spi.core.AppDefinition;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalTaskLauncherIntegrationTests.Config;
+import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.AbstractTaskLauncherIntegrationTests;
+import org.springframework.cloud.deployer.spi.test.EventuallyMatcher;
+import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.util.SocketUtils;
 
 /**
  * Integration tests for {@link LocalTaskLauncher}.
@@ -78,6 +92,32 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		else {
 			return super.randomName();
 		}
+	}
+
+	@Test
+	public void testPassingServerPortViaCommandLineArgs() throws InterruptedException {
+		Map<String, String> appProperties = new HashMap();
+		appProperties.put("killDelay", "0");
+		appProperties.put("exitCode", "0");
+
+		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
+
+		Resource resource = this.testApplication();
+
+		List<String> commandLineArgs = new ArrayList<>(1);
+		// Test to ensure no issues parsing server.port command line arg.
+		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG + SocketUtils.findAvailableTcpPort(LocalTaskLauncher.DEFAULT_SERVER_PORT));
+
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, null, commandLineArgs);
+
+		this.log.info("Launching {}...", request.getDefinition().getName());
+
+		String launchId = this.taskLauncher().launch(request);
+		Timeout timeout = this.deploymentTimeout();
+
+		Assert.assertThat(launchId, EventuallyMatcher.eventually(this.hasStatusThat(Matchers.hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+
+		this.taskLauncher().destroy(definition.getName());
 	}
 
 	@Configuration

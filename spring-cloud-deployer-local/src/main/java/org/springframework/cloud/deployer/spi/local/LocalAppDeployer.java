@@ -66,8 +66,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalAppDeployer.class);
 
-	static final String SERVER_PORT_KEY = "server.port";
-
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
 	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
