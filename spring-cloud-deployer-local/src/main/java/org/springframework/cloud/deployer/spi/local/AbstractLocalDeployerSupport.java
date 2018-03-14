@@ -54,6 +54,10 @@ public abstract class AbstractLocalDeployerSupport {
 	private static final String USE_SPRING_APPLICATION_JSON_KEY =
 			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
 
+	public static final String SERVER_PORT_KEY = "server.port";
+
+	public static final String SERVER_PORT_KEY_PREFIX = "--" + SERVER_PORT_KEY + "=";
+
 	public static final String SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON";
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -68,7 +72,7 @@ public abstract class AbstractLocalDeployerSupport {
 
 	private final DockerCommandBuilder dockerCommandBuilder;
 
-	private static final int DEFAULT_SERVER_PORT = 8080;
+	public static final int DEFAULT_SERVER_PORT = 8080;
 
 	private String[] envVarsSetByDeployer =
 			{"SPRING_CLOUD_APPLICATION_GUID", "SPRING_APPLICATION_INDEX", "INSTANCE_INDEX"};
@@ -322,12 +326,38 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort, Map<String, String> args) {
-		int port = useDynamicPort ? SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT)
-				: Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
+
+		int port = DEFAULT_SERVER_PORT;
+		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
+
+		if(useDynamicPort) {
+			port = SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT);
+		}
+		else if(commandLineArgPort != null) {
+			port = commandLineArgPort;
+		}
+		else if(request.getDefinition().getProperties().containsKey(LocalAppDeployer.SERVER_PORT_KEY)){
+			port = Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
+		}
+
 		if (useDynamicPort) {
 			args.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
+
 		return port;
+	}
+
+	protected Integer isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
+		Integer result = null;
+
+		for (String argument : request.getCommandlineArguments()) {
+			if (argument.startsWith(SERVER_PORT_KEY_PREFIX)) {
+				result = Integer.parseInt(argument.replace(SERVER_PORT_KEY_PREFIX, "").trim());
+				break;
+			}
+		}
+
+		return result;
 	}
 
 	protected interface Instance {

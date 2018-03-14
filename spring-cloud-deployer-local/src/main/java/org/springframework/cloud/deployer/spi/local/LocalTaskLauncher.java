@@ -57,10 +57,6 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalTaskLauncher.class);
 
-	private static final String SERVER_PORT_KEY = "server.port";
-
-	private final String SERVER_PORT_KEY_PREFIX = "--" + SERVER_PORT_KEY + "=";
-
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
 	private final Map<String, TaskInstance> running = new ConcurrentHashMap<>();
@@ -116,7 +112,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	}
 
 	private boolean isDynamicPort(AppDeploymentRequest request) {
-		boolean isServerPortKeyonArgs = isServerPortKeyPresentOnArgs(request);
+		boolean isServerPortKeyonArgs = isServerPortKeyPresentOnArgs(request) != null;
 		return !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY)
 				&& !isServerPortKeyonArgs;
 	}
@@ -282,14 +278,4 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		}
 	}
 
-	private boolean isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
-		boolean result = false;
-			for (String argument : request.getCommandlineArguments()) {
-				if (argument.startsWith(SERVER_PORT_KEY_PREFIX)) {
-					result = true;
-					break;
-				}
-		}
-		return result;
-	}
 }
