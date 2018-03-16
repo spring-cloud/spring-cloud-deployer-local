@@ -143,7 +143,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				builder.directory(workDir.toFile());
 
-				if (this.shouldInheritLogging(request)){
+				if (this.shouldInheritLogging(request)) {
 					instance.start(builder, workDir);
 					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.", deploymentId, i);
 				}
@@ -235,9 +235,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by
 	 * checking deployment properties.
 	 */
-	private boolean shouldInheritLogging(AppDeploymentRequest request){
+	private boolean shouldInheritLogging(AppDeploymentRequest request) {
 		boolean inheritLogging = false;
-		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)){
+		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)) {
 			inheritLogging = Boolean.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
 		}
 		return inheritLogging;
@@ -325,17 +325,25 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		 * to the 'out' and 'err' streams of this process.
 		 */
 		private void start(ProcessBuilder builder, Path workDir) throws IOException {
+			if (logger.isDebugEnabled()) {
+				logger.info("Local Deployer Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
 			this.workFile = workDir.toFile();
 			this.attributes.put("working.dir", this.workFile.getAbsolutePath());
 			this.process = builder.start();
-		    this.pid = getLocalProcessPid(this.process);
-		    if (pid > 0) {
+			this.pid = getLocalProcessPid(this.process);
+			if (pid > 0) {
 				// add pid if we got it
 				attributes.put("pid", Integer.toString(pid));
 			}
 		}
 
 		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
+			if (logger.isDebugEnabled()) {
+				logger.info("Local Deployer Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
 			String workDirPath = workDir.toFile().getAbsolutePath();
 
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
@@ -388,7 +396,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				pid = f.getInt(p);
 				f.setAccessible(false);
 			}
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			pid = 0;
 		}
 		return pid;
