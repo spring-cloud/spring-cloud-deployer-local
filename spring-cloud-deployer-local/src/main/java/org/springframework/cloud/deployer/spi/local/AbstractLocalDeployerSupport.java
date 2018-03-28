@@ -321,7 +321,7 @@ public abstract class AbstractLocalDeployerSupport {
 		return Integer.parseInt(basePort) + instanceIndex;
 	}
 
-	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
+	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
 		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.properties.isUseSpringApplicationJson();
 	}
 
