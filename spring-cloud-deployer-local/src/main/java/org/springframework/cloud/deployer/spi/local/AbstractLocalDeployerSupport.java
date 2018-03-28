@@ -74,9 +74,6 @@ public abstract class AbstractLocalDeployerSupport {
 
 	public static final int DEFAULT_SERVER_PORT = 8080;
 
-	private String[] envVarsSetByDeployer =
-			{"SPRING_CLOUD_APPLICATION_GUID", "SPRING_APPLICATION_INDEX", "INSTANCE_INDEX"};
-
 	/**
 	 * Instantiates a new abstract deployer support.
 	 *
@@ -321,7 +318,7 @@ public abstract class AbstractLocalDeployerSupport {
 		return Integer.parseInt(basePort) + instanceIndex;
 	}
 
-	private boolean useSpringApplicationJson(AppDeploymentRequest request) {
+	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
 		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.properties.isUseSpringApplicationJson();
 	}
 

@@ -171,9 +171,16 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
 
-				appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
-				appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
-				appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+				if (useSpringApplicationJson(request)) {
+					appInstanceEnv.put("instance.index", Integer.toString(i));
+					appInstanceEnv.put("spring.application.index", Integer.toString(i));
+					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+				}
+				else {
+					appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
+					appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
+					appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+				}
 
 				AppInstance instance = new AppInstance(deploymentId, i, port);
 

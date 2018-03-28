@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2018 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
-import org.springframework.cloud.deployer.spi.local.LocalAppDeployerIntegrationTests.Config;
+import org.springframework.cloud.deployer.spi.local.LocalAppDeployerEnvironmentIntegrationTests.Config;
 import org.springframework.cloud.deployer.spi.test.AbstractAppDeployerIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.Timeout;
@@ -61,7 +61,7 @@ import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown
 import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
 /**
- * Integration tests for {@link LocalAppDeployer}.
+ * Integration tests for {@link LocalAppDeployer} not using SAJ.
  *
  * Now supports running with Docker images for tests, just set this env var:
  *
@@ -73,9 +73,10 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Janne Valkealahti
  * @author Ilayaperumal Gopinathan
  */
-@SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
-public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegrationTests {
+@SpringBootTest(classes = { Config.class, AbstractIntegrationTests.Config.class }, value = {
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot",
+		"spring.cloud.deployer.local.use-spring-application-json=false" })
+public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDeployerIntegrationTests {
 
 	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";
 
@@ -113,7 +114,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	}
 
 	@Test
-	public void testEnvVariablesInheritedViaEnvEndpoint() {
+	public void testEnvVariablesInheritedViaEnvEndpointNoSaj() {
 		if (useDocker) {
 			// would not expect to be able to check anything on docker
 			return;
@@ -156,11 +157,11 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		}
 		else {
 			assertThat(env, containsString("\"PATH\""));
-			// we're defaulting to SAJ so it's i.e.
-			// instance.index not INSTANCE_INDEX
-			assertThat(env, containsString("\"instance.index\""));
-			assertThat(env, containsString("\"spring.application.index\""));
-			assertThat(env, containsString("\"spring.cloud.application.guid\""));
+			// we're not using SAJ so it's i.e.
+			// INSTANCE_INDEX not instance.index
+			assertThat(env, containsString("\"INSTANCE_INDEX\""));
+			assertThat(env, containsString("\"SPRING_APPLICATION_INDEX\""));
+			assertThat(env, containsString("\"SPRING_CLOUD_APPLICATION_GUID\""));
 		}
 	}
 
