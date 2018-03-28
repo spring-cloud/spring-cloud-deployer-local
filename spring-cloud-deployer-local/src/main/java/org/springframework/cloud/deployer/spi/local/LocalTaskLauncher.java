@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
@@ -50,6 +52,7 @@ import org.springframework.cloud.deployer.spi.task.TaskStatus;
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
  * @author Michael Minella
+ * @author Christian Tzolov
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -60,6 +63,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 
 	private final Map<String, TaskInstance> running = new ConcurrentHashMap<>();
+
+	private final Map<String, CopyOnWriteArrayList<String>> taskInstanceHistory = new ConcurrentHashMap<>();
 
 	/**
 	 * Instantiates a new local task launcher.
@@ -74,6 +79,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	public String launch(AppDeploymentRequest request) {
 
 		String taskLaunchId = request.getDefinition().getName() + "-" + UUID.randomUUID().toString();
+
+		pruneTaskInstanceHistory(request.getDefinition().getName(), taskLaunchId);
 
 		HashMap<String, String> args = new HashMap<>();
 		args.putAll(request.getDefinition().getProperties());
@@ -109,6 +116,26 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		}
 
 		return taskLaunchId;
+	}
+
+	private void pruneTaskInstanceHistory(String taskDefinitionName, String taskLaunchId) {
+		CopyOnWriteArrayList<String> oldTaskInstanceIds = taskInstanceHistory.get(taskDefinitionName);
+		if (oldTaskInstanceIds == null) {
+			oldTaskInstanceIds = new CopyOnWriteArrayList<>();
+			taskInstanceHistory.put(taskDefinitionName, oldTaskInstanceIds);
+		}
+
+		for (String oldTaskInstanceId : oldTaskInstanceIds) {
+			TaskInstance oldTaskInstance = running.get(oldTaskInstanceId);
+			if (oldTaskInstance != null && oldTaskInstance.getState() != LaunchState.running
+					&& oldTaskInstance.getState() != LaunchState.launching) {
+				running.remove(oldTaskInstanceId);
+				oldTaskInstanceIds.remove(oldTaskInstanceId);
+			} else {
+				oldTaskInstanceIds.remove(oldTaskInstanceId);
+			}
+		}
+		oldTaskInstanceIds.add(taskLaunchId);
 	}
 
 	private boolean isDynamicPort(AppDeploymentRequest request) {
@@ -155,6 +182,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		for (String taskLaunchId : running.keySet()) {
 			cancel(taskLaunchId);
 		}
+		taskInstanceHistory.clear();
 	}
 
 	private Path createWorkingDir(String taskLaunchId, Path dir) throws IOException {
