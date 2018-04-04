@@ -171,19 +171,15 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
 
-				appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
-				appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
-				appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
-
-				// we only set 'normal' style props reflecting what we set for env format
-				// for cross reference to work inside SAJ.
-				// looks like for now we can't remove these env style formats as i.e.
-				// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
-				// this might be indication that we can't yet fully remove those.
 				if (useSpringApplicationJson(request)) {
 					appInstanceEnv.put("instance.index", Integer.toString(i));
 					appInstanceEnv.put("spring.application.index", Integer.toString(i));
 					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+				}
+				else {
+					appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
+					appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
+					appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
 				}
 
 				AppInstance instance = new AppInstance(deploymentId, i, port);
