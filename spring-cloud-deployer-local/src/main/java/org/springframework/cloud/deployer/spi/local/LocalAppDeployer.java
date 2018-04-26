@@ -173,6 +173,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				if (useSpringApplicationJson(request)) {
 					appInstanceEnv.put("instance.index", Integer.toString(i));
+					appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(i));
 					appInstanceEnv.put("spring.application.index", Integer.toString(i));
 					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
 				}
