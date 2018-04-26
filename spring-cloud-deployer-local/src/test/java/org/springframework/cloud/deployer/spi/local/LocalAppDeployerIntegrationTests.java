@@ -161,6 +161,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 			assertThat(env, containsString("\"instance.index\""));
 			assertThat(env, containsString("\"spring.application.index\""));
 			assertThat(env, containsString("\"spring.cloud.application.guid\""));
+			assertThat(env, containsString("\"INSTANCE_INDEX\""));
 		}
 	}
 
