@@ -173,8 +173,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 				if (useSpringApplicationJson(request)) {
 					appInstanceEnv.put("instance.index", Integer.toString(i));
-					// need to force env format of index as it's required by streams
-					appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
+					appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(i));
 					appInstanceEnv.put("spring.application.index", Integer.toString(i));
 					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
 				}
