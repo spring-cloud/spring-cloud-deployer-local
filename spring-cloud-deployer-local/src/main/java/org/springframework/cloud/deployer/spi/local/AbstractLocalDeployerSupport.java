@@ -21,6 +21,7 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -195,7 +196,12 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
-
+		logger.debug(String.format("Environment Variables to be used : %s",
+				builder.environment()
+						.entrySet()
+						.stream()
+						.map(entry -> entry.getKey() + " : " + entry.getValue())
+						.collect(Collectors.joining(", "))));
 		return builder;
 	}
 
