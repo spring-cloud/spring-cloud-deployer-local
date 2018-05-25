@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.style.ToStringCreator;
 import org.springframework.util.Assert;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Configuration properties for the local deployer.
@@ -38,6 +39,7 @@ import org.springframework.util.Assert;
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
  */
+@Validated
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
 public class LocalDeployerProperties {
 
