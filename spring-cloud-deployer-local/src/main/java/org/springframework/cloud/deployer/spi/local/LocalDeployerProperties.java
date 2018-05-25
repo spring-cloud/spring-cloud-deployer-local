@@ -103,9 +103,12 @@ public class LocalDeployerProperties {
 	private String javaCmd = deduceJavaCommand();
 
 	/**
-	 * Maximum number of seconds to wait for application shutdown
+	 * Maximum number of seconds to wait for application shutdown.
 	 * via the {@code /shutdown} endpoint.
+	 * A timeout value of 0 specifies an infinite timeout.
+	 * Default is 30 seconds.
 	 */
+	@Min(-1)
 	private int shutdownTimeout = 30;
 
 	/**

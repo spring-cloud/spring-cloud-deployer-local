@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.http.client.config.RequestConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -28,6 +29,7 @@ import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.hasItem;
@@ -91,6 +93,32 @@ public class LocalDeployerSupportTests {
 		portToUse = localDeployerSupport.calcServerPort(appDeploymentRequest, true, new HashMap<>());
 		assertThat(portToUse, not(9191));
 		assertThat(portToUse, not(9292));
+	}
+
+	@Test
+	public void testShutdownPropertyConfiguresRequestFactory() throws Exception {
+		LocalDeployerProperties properties = new LocalDeployerProperties();
+		properties.setShutdownTimeout(1);
+		AbstractLocalDeployerSupport abstractLocalDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
+		Object restTemplate = ReflectionTestUtils.getField(abstractLocalDeployerSupport, "restTemplate");
+		Object requestFactory = ReflectionTestUtils.getField(restTemplate, "requestFactory");
+		Object connectTimeout = ReflectionTestUtils.getField(requestFactory, "connectTimeout");
+		Object readTimeout = ReflectionTestUtils.getField(requestFactory, "readTimeout");
+		assertThat(connectTimeout, is(1000));
+		assertThat(readTimeout, is(1000));
+	}
+
+	@Test
+	public void testShutdownPropertyNotConfiguresRequestFactory() throws Exception {
+		LocalDeployerProperties properties = new LocalDeployerProperties();
+		properties.setShutdownTimeout(-1);
+		AbstractLocalDeployerSupport abstractLocalDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
+		Object restTemplate = ReflectionTestUtils.getField(abstractLocalDeployerSupport, "restTemplate");
+		Object requestFactory = ReflectionTestUtils.getField(restTemplate, "requestFactory");
+		Object connectTimeout =  ReflectionTestUtils.getField(requestFactory,"connectTimeout");
+		Object readTimeout = ReflectionTestUtils.getField(requestFactory, "readTimeout");
+		assertThat(connectTimeout, is(-1));
+		assertThat(readTimeout, is(-1));
 	}
 
 	protected AppDeploymentRequest createAppDeploymentRequest() throws MalformedURLException {
