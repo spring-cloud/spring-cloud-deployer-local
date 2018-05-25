@@ -34,6 +34,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.util.RuntimeVersionUtils;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.SocketUtils;
 import org.springframework.web.client.RestTemplate;
@@ -67,7 +68,7 @@ public abstract class AbstractLocalDeployerSupport {
 
 	private final LocalDeployerProperties properties;
 
-	private final RestTemplate restTemplate = new RestTemplate();
+	private final RestTemplate restTemplate;
 
 	private final JavaCommandBuilder javaCommandBuilder;
 
@@ -85,6 +86,28 @@ public abstract class AbstractLocalDeployerSupport {
 		this.properties = properties;
 		this.javaCommandBuilder = new JavaCommandBuilder(properties);
 		this.dockerCommandBuilder = new DockerCommandBuilder();
+		this.restTemplate = buildRestTemplate(properties);
+	}
+
+	/**
+	 * Builds a {@link RestTemplate} used for calling app's shutdown endpoint. If
+	 * needed can be overridden from an implementing class. This default implementation
+	 * sets connection and read timeouts for {@link SimpleClientHttpRequestFactory} and
+	 * configures {@link RestTemplate} to use that factory. If shutdown timeout in
+	 * properties negative, returns default {@link RestTemplate} which doesn't use timeouts.
+	 *
+	 * @param properties the local deployer properties
+	 * @return the rest template
+	 */
+	protected RestTemplate buildRestTemplate(LocalDeployerProperties properties) {
+		if (properties != null && properties.getShutdownTimeout() > -1) {
+			SimpleClientHttpRequestFactory clientHttpRequestFactory = new SimpleClientHttpRequestFactory();
+			clientHttpRequestFactory.setConnectTimeout(properties.getShutdownTimeout() * 1000);
+			clientHttpRequestFactory.setReadTimeout(properties.getShutdownTimeout() * 1000);
+			return new RestTemplate(clientHttpRequestFactory);
+		}
+		// fall back to plain default constructor
+		return new RestTemplate();
 	}
 
 	protected String buildRemoteDebugInstruction(Map<String, String> deploymentProperties, String deploymentId,
