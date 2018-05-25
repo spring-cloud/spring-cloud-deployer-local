@@ -93,6 +93,32 @@ public class LocalDeployerSupportTests {
 		assertThat(portToUse, not(9292));
 	}
 
+	@Test
+	public void testShutdownPropertyConfiguresRequestFactory() throws Exception {
+		LocalDeployerProperties properties = new LocalDeployerProperties();
+		properties.setShutdownTimeout(1);
+		AbstractLocalDeployerSupport abstractLocalDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
+		Object restTemplate = TestUtils.readField("restTemplate", abstractLocalDeployerSupport);
+		Object requestFactory = TestUtils.readField("requestFactory", restTemplate);
+		Object connectTimeout = TestUtils.readField("connectTimeout", requestFactory);
+		Object readTimeout = TestUtils.readField("readTimeout", requestFactory);
+		assertThat(connectTimeout, is(1000));
+		assertThat(readTimeout, is(1000));
+	}
+
+	@Test
+	public void testShutdownPropertyNotConfiguresRequestFactory() throws Exception {
+		LocalDeployerProperties properties = new LocalDeployerProperties();
+		properties.setShutdownTimeout(-1);
+		AbstractLocalDeployerSupport abstractLocalDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
+		Object restTemplate = TestUtils.readField("restTemplate", abstractLocalDeployerSupport);
+		Object requestFactory = TestUtils.readField("requestFactory", restTemplate);
+		Object connectTimeout = TestUtils.readField("connectTimeout", requestFactory);
+		Object readTimeout = TestUtils.readField("readTimeout", requestFactory);
+		assertThat(connectTimeout, is(-1));
+		assertThat(readTimeout, is(-1));
+	}
+
 	protected AppDeploymentRequest createAppDeploymentRequest() throws MalformedURLException {
 		return createAppDeploymentRequest(new HashMap<>());
 	}
