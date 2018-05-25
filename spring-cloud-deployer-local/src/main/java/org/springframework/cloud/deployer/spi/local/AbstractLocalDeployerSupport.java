@@ -251,8 +251,10 @@ public abstract class AbstractLocalDeployerSupport {
 		try {
 			int timeout = getLocalDeployerProperties().getShutdownTimeout();
 			if (timeout > 0) {
+				logger.debug("About to call shutdown endpoint for instance {}", instance);
 				ResponseEntity<String> response = restTemplate.postForEntity(
 						instance.getBaseUrl() + "/shutdown", null, String.class);
+				logger.debug("Response for shutdown endpoint completed for instance {} with response {}", instance, response);
 				if (response.getStatusCode().is2xxSuccessful()) {
 					long timeoutTimestamp = System.currentTimeMillis() + (timeout * 1000);
 					while (isAlive(instance.getProcess()) && System.currentTimeMillis() < timeoutTimestamp) {
@@ -270,18 +272,23 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 		finally {
 			if (isAlive(instance.getProcess())) {
+				logger.debug("About to call destroy process for instance {}", instance);
 				instance.getProcess().destroy();
+				logger.debug("Call comleted to destroy process for instance {}", instance);
 			}
 		}
 	}
 
 	// Copy-pasting of JDK8+ isAlive method to retain JDK7 compatibility
-	protected static boolean isAlive(Process process) {
+	protected boolean isAlive(Process process) {
 		try {
+			logger.debug("About to call exitValue of process {}", process);
 			process.exitValue();
+			logger.debug("Call to exitValue of process {} complete, return false", process);
 			return false;
 		}
 		catch (IllegalThreadStateException e) {
+			logger.debug("Call to exitValue of process {} threw exception, return true", process);
 			return true;
 		}
 	}
