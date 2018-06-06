@@ -306,10 +306,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		private File workFile;
 		private File stdout;
 		private File stderr;
+		private int port;
 
 		private AppInstance(String deploymentId, int instanceNumber, int port) throws IOException {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
+			this.port = port;
 			attributes.put("port", Integer.toString(port));
 			attributes.put("guid", Integer.toString(port));
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
@@ -342,6 +344,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			// TODO: consider using exit code mapper concept from batch
 			if (exit != null) {
 				return DeploymentState.failed;
+			}
+			if (port < 1) {
+				// Support case where user passed in zero or negative port indicating fully random
+				// chosen by OS. In this case we simply return deployed if process is up.
+				// Also we can't even try http check as we would not know port to connect to.
+				return DeploymentState.deployed;
 			}
 			try {
 				HttpURLConnection urlConnection = (HttpURLConnection) baseUrl.openConnection();

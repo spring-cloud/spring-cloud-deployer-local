@@ -239,6 +239,30 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		deployer.undeploy(deploymentId);
 	}
 
+
+	@Test
+	public void testZeroPortReportsDeployed() {
+		Map<String, String> properties = new HashMap<>();
+		properties.put("server.port", "0");
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+		Timeout timeout = deploymentTimeout();
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+
+		log.info("Undeploying {}...", deploymentId);
+
+		timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+	}
+
 	private String getCommandOutput(String cmd) throws IOException {
 		Process process = Runtime.getRuntime().exec(cmd);
 		BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
