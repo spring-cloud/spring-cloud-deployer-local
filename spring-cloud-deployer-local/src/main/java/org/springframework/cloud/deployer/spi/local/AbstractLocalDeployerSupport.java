@@ -21,6 +21,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -364,7 +366,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
 		if(useDynamicPort) {
-			port = SocketUtils.findAvailableTcpPort(DEFAULT_SERVER_PORT);
+			port = getRandomPort(port);
 		}
 		else if(commandLineArgPort != null) {
 			port = commandLineArgPort;
@@ -377,6 +379,23 @@ public abstract class AbstractLocalDeployerSupport {
 			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
 
+		return port;
+	}
+
+	private int getRandomPort(int port) {
+		//The port to return when requesting a single value is not very reliable.
+		Set<Integer> availPorts = SocketUtils.findAvailableTcpPorts(20, DEFAULT_SERVER_PORT, SocketUtils.PORT_RANGE_MAX);
+		Random rand = new Random(System.currentTimeMillis());
+		int randomIndex = rand.nextInt(availPorts.size());
+		int i = 0;
+		for(Integer freePort : availPorts)
+		{
+			if (i == randomIndex) {
+				port = freePort;
+				break;
+			}
+			i++;
+		}
 		return port;
 	}
 
