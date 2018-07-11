@@ -37,6 +37,7 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalTaskLauncherIntegrationTests.Config;
 import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
+import org.springframework.cloud.deployer.spi.task.TaskStatus;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.AbstractTaskLauncherIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.EventuallyMatcher;
@@ -45,6 +46,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.util.SocketUtils;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertThat;
+import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
 /**
  * Integration tests for {@link LocalTaskLauncher}.
@@ -118,6 +124,53 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		Assert.assertThat(launchId, EventuallyMatcher.eventually(this.hasStatusThat(Matchers.hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
 
 		this.taskLauncher().destroy(definition.getName());
+	}
+
+	@Test
+	public void testDeleteHistoryOnReLaunch() {
+		Map<String, String> appProperties = new HashMap<>();
+		appProperties.put("killDelay", "0");
+		appProperties.put("exitCode", "0");
+		AppDefinition definition = new AppDefinition(randomName(), appProperties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		String launchId1 = taskLauncher().launch(request);
+
+		Timeout timeout = deploymentTimeout();
+
+		assertThat(launchId1, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+
+		String launchId2 = taskLauncher().launch(request);
+
+		assertThat(launchId2, not(is(launchId1)));
+
+		timeout = deploymentTimeout();
+
+		assertThat(launchId2, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+
+		assertThat(launchId1, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+
+		String launchId3 = taskLauncher().launch(request);
+
+		assertThat(launchId3, not(is(launchId1)));
+		assertThat(launchId3, not(is(launchId2)));
+
+		timeout = deploymentTimeout();
+
+		assertThat(launchId3, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+
+		assertThat(launchId1, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+
+		assertThat(launchId2, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+
+		taskLauncher().destroy(definition.getName());
 	}
 
 	@Configuration
