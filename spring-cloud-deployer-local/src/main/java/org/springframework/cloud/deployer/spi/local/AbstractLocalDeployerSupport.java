@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -55,6 +56,12 @@ import org.springframework.web.client.RestTemplate;
  */
 public abstract class AbstractLocalDeployerSupport {
 
+	protected final Logger logger = LoggerFactory.getLogger(getClass());
+
+	public static final String SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON";
+
+	public static final int DEFAULT_SERVER_PORT = 8080;
+
 	private static final String USE_SPRING_APPLICATION_JSON_KEY =
 			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
 
@@ -62,11 +69,7 @@ public abstract class AbstractLocalDeployerSupport {
 
 	static final String SERVER_PORT_KEY_COMMAND_LINE_ARG = "--" + SERVER_PORT_KEY + "=";
 
-	public static final String SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON";
-
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final LocalDeployerProperties properties;
 
@@ -76,7 +79,6 @@ public abstract class AbstractLocalDeployerSupport {
 
 	private final DockerCommandBuilder dockerCommandBuilder;
 
-	public static final int DEFAULT_SERVER_PORT = 8080;
 
 	/**
 	 * Instantiates a new abstract deployer support.
@@ -383,8 +385,9 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	private int getRandomPort(int port) {
-		//The port to return when requesting a single value is not very reliable.
-		Set<Integer> availPorts = SocketUtils.findAvailableTcpPorts(20, DEFAULT_SERVER_PORT, SocketUtils.PORT_RANGE_MAX);
+		int randomInt = ThreadLocalRandom.current().nextInt(50000, 61000);
+		Set<Integer> availPorts = SocketUtils.findAvailableTcpPorts(10, randomInt, randomInt+10);
+		logger.debug("Available Ports: " + availPorts.toString());
 		Random rand = new Random(System.currentTimeMillis());
 		int randomIndex = rand.nextInt(availPorts.size());
 		int i = 0;
@@ -396,6 +399,7 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 			i++;
 		}
+		logger.debug("Using Port: " + port);
 		return port;
 	}
 
