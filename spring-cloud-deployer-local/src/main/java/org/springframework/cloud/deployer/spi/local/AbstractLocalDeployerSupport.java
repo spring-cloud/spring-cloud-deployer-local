@@ -18,7 +18,10 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -55,6 +58,12 @@ import org.springframework.web.client.RestTemplate;
  * @author Michael Minella
  */
 public abstract class AbstractLocalDeployerSupport {
+
+	protected static Set<Integer> usedPorts = Collections.newSetFromMap(new LinkedHashMap<Integer, Boolean>(){
+		protected boolean removeEldestEntry(Map.Entry<Integer, Boolean> eldest) {
+			return size() > 1000;
+		}
+	});
 
 	protected final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -368,7 +377,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
 		if(useDynamicPort) {
-			port = getRandomPort(port);
+			port = getRandomPort();
 		}
 		else if(commandLineArgPort != null) {
 			port = commandLineArgPort;
@@ -384,23 +393,42 @@ public abstract class AbstractLocalDeployerSupport {
 		return port;
 	}
 
-	private int getRandomPort(int port) {
-		int randomInt = ThreadLocalRandom.current().nextInt(50000, 61000);
-		Set<Integer> availPorts = SocketUtils.findAvailableTcpPorts(10, randomInt, randomInt+10);
-		logger.debug("Available Ports: " + availPorts.toString());
-		Random rand = new Random(System.currentTimeMillis());
-		int randomIndex = rand.nextInt(availPorts.size());
-		int i = 0;
-		for(Integer freePort : availPorts)
-		{
-			if (i == randomIndex) {
-				port = freePort;
+	public synchronized int getRandomPort() {
+		Set<Integer> availPorts = new HashSet<>();
+		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
+		for (int retryCount = 0; retryCount < 5; retryCount++) {
+			int randomInt = ThreadLocalRandom.current().nextInt(20000, 61000);
+			try {
+				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
+				try {
+					// Give some time for the system to release up ports that were scanned.
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					logger.debug(e.getMessage() + "Retrying to find available ports.");
+				}
+				break;
+			} catch (IllegalStateException e) {
+				logger.debug(e.getMessage() +  "  Retrying to find available ports.");
+			}
+		}
+		if (availPorts.isEmpty()) {
+			throw new IllegalStateException("Could not find an available TCP port in the range 20000-61000");
+		}
+
+		int finalPort = -1;
+		logger.debug("Available Ports: " + availPorts);
+		for(Integer freePort : availPorts) {
+			if (!usedPorts.contains(freePort)) {
+				finalPort = freePort;
+				usedPorts.add(finalPort);
 				break;
 			}
-			i++;
 		}
-		logger.debug("Using Port: " + port);
-		return port;
+		if (finalPort == -1)  {
+			throw new IllegalStateException("Could not find a free random port range 20000-61000");
+		}
+		logger.debug("Using Port: " + finalPort);
+		return finalPort;
 	}
 
 	protected Integer isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
