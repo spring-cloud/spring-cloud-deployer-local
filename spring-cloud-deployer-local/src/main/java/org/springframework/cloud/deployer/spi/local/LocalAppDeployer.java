@@ -403,10 +403,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 
 		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Local App Deployer Commands: " + String.join(",", builder.command())
-						+ ", Environment: " + builder.environment());
-			}
 			String workDirPath = workDir.toFile().getAbsolutePath();
 
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
