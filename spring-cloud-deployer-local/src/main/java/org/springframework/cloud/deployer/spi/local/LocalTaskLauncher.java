@@ -16,6 +16,15 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
+import org.springframework.cloud.deployer.spi.task.LaunchState;
+import org.springframework.cloud.deployer.spi.task.TaskLauncher;
+import org.springframework.cloud.deployer.spi.task.TaskStatus;
+
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -24,23 +33,13 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-
-import javax.annotation.PreDestroy;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
-import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
-import org.springframework.cloud.deployer.spi.task.LaunchState;
-import org.springframework.cloud.deployer.spi.task.TaskLauncher;
-import org.springframework.cloud.deployer.spi.task.TaskStatus;
 
 /**
  * A {@link TaskLauncher} implementation that spins off a new JVM process per task launch.
@@ -205,7 +204,8 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 							request.getDefinition().getName());
 		}
 
-		String qualifiedName = Long.toString(System.currentTimeMillis());
+		Instant now = Instant.now();
+		String qualifiedName = Long.toString(now.toEpochMilli() + now.getNano());
 
 		Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
 
