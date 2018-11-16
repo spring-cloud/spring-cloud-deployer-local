@@ -204,8 +204,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 							request.getDefinition().getName());
 		}
 
-		Instant now = Instant.now();
-		String qualifiedName = Long.toString(now.toEpochMilli() + now.getNano());
+		String qualifiedName = Long.toString(System.nanoTime());
 
 		Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
 
