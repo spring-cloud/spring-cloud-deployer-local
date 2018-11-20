@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -342,8 +343,7 @@ public abstract class AbstractLocalDeployerSupport {
 			try {
 				int port = Integer.parseInt(basePort);
 				if (port <= 0) {
-					logger.error("The debug port {} specified for deploymentId {} must be greater than zero",
-							basePort, deploymentId);
+					logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
 					return false;
 				}
 			} catch (NumberFormatException e) {
@@ -355,29 +355,6 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 		return validDebugPort;
 	}
-
-	protected boolean containsValidSleep(Map<String, String> deploymentProperties, String deploymentId) {
-		boolean validSleepMs = false;
-		if (deploymentProperties.containsKey(LocalDeployerProperties.PROBE_SLEEP_MS)) {
-			String baseSleepMs = deploymentProperties.get(LocalDeployerProperties.PROBE_SLEEP_MS);
-			try {
-				int sleepMs = Integer.parseInt(baseSleepMs);
-				if (sleepMs <= 0) {
-					logger.error("The sleep in ms {} specified for deploymentId {} must be greater than zero",
-							baseSleepMs, deploymentId);
-					return false;
-				}
-			} catch (NumberFormatException e) {
-				logger.error("The sleep in ms {} specified for deploymentId {} can not be parsed to an integer.",
-						baseSleepMs, deploymentId);
-				return false;
-			}
-			validSleepMs = true;
-		}
-		return validSleepMs;
-	}
-
-
 
 	/**
 	 * Gets the base debug port value and adds the instance count.  Assumes {@link #containsValidDebugPort(Map, String)}
@@ -401,12 +378,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
 		if(useDynamicPort) {
-			int sleepInMs = 100;
-			if (this.containsValidSleep(request.getDeploymentProperties(), request.getDefinition().getName())) {
-				String baseSleepMs = request.getDeploymentProperties().get(LocalDeployerProperties.PROBE_SLEEP_MS);
-				sleepInMs =  Integer.parseInt(baseSleepMs);
-			}
-			port = getRandomPort(sleepInMs);
+			port = getRandomPort();
 		}
 		else if(commandLineArgPort != null) {
 			port = commandLineArgPort;
@@ -422,7 +394,7 @@ public abstract class AbstractLocalDeployerSupport {
 		return port;
 	}
 
-	public synchronized int getRandomPort(int sleepInMs) {
+	public synchronized int getRandomPort() {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
@@ -431,10 +403,9 @@ public abstract class AbstractLocalDeployerSupport {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
 					// Give some time for the system to release up ports that were scanned.
-					logger.debug("Sleeping for {} ms after probing for ports", sleepInMs);
-					Thread.sleep(sleepInMs);
+					Thread.sleep(100);
 				} catch (InterruptedException e) {
-					logger.debug(e.getMessage() + "  Retrying to find available ports.");
+					logger.debug(e.getMessage() + "Retrying to find available ports.");
 				}
 				break;
 			} catch (IllegalStateException e) {

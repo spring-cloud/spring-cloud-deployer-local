@@ -69,11 +69,6 @@ public class LocalDeployerProperties {
 	 */
 	public static final String DEBUG_SUSPEND = PREFIX + ".debugSuspend";
 
-	/**
-	 * The time to sleep in ms after probing for free ports
-	 */
-	public static final String PROBE_SLEEP_MS = PREFIX + ".probeSleepMs";
-
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
 	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";

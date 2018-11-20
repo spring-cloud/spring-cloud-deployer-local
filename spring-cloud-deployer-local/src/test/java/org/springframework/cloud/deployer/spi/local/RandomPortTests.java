@@ -34,7 +34,7 @@ public class RandomPortTests {
 	public void portTests() {
 		//No exception should be thrown
 		for (int i = 0; i < 100; i++) {
-			localDeployerSupport.getRandomPort(100);
+			localDeployerSupport.getRandomPort();
 		}
 	}
 
