@@ -120,7 +120,6 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 			return;
 		}
 		Map<String, String> properties = new HashMap<>();
-		properties.put("management.security.enabled", "false");
 		AppDefinition definition = new AppDefinition(randomName(), properties);
 		Resource resource = testApplication();
 		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
@@ -140,7 +139,7 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 		String env = null;
 		if (url != null) {
 			RestTemplate template = new RestTemplate();
-			env = template.getForObject(url + "/env", String.class);
+			env = template.getForObject(url + "/actuator/env", String.class);
 		}
 
 		log.info("Undeploying {}...", deploymentId);
