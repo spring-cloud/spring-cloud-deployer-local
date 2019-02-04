@@ -122,23 +122,6 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
-	/**
-	 * The target percentag of free disk space to always aim for when cleaning downloaded
-	 * resources (typically via the local maven repository). Specify as an integer greater
-	 * than zero and less than 100. Default is 5.
-	 */
-	private int freeDiskSpacePercentage = 5;
-
-	@Min(0)
-	@Max(100)
-	public int getFreeDiskSpacePercentage() {
-		return freeDiskSpacePercentage;
-	}
-
-	public void setFreeDiskSpacePercentage(int freeDiskSpacePercentage) {
-		this.freeDiskSpacePercentage = freeDiskSpacePercentage;
-	}
-
 	public String getJavaCmd() {
 		return javaCmd;
 	}
