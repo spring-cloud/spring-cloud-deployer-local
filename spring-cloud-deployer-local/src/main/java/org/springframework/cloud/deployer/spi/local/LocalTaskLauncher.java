@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ import org.springframework.cloud.deployer.spi.task.TaskStatus;
  * @author Oleg Zhurakousky
  * @author Michael Minella
  * @author Christian Tzolov
+ * @author David Turanski
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -77,6 +78,13 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	@Override
 	public String launch(AppDeploymentRequest request) {
+
+		if (this.maxConcurrentExecutionsReached()) {
+			throw new IllegalStateException(
+				String.format("Cannot launch task %s. The maximum concurrent task executions is at its limit [%d].",
+					request.getDefinition().getName(), this.getMaximumConcurrentTasks())
+			);
+		}
 
 		String taskLaunchId = request.getDefinition().getName() + "-" + UUID.randomUUID().toString();
 
@@ -176,6 +184,29 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	public RuntimeEnvironmentInfo environmentInfo() {
 		return super.createRuntimeEnvironmentInfo(TaskLauncher.class, this.getClass());
 	}
+
+	@Override
+	public int getMaximumConcurrentTasks() {
+		return getLocalDeployerProperties().getMaximumConcurrentTasks();
+	}
+
+
+	@Override
+	public int getRunningTaskExecutionCount() {
+		int runningExecutionCount = 0;
+
+		for (TaskInstance taskInstance: running.values()) {
+			if (taskInstance.getProcess().isAlive()) {
+				runningExecutionCount++;
+			}
+		}
+		return runningExecutionCount;
+	}
+
+	private boolean maxConcurrentExecutionsReached() {
+		return getRunningTaskExecutionCount() >= getMaximumConcurrentTasks();
+	}
+
 
 	@PreDestroy
 	public void shutdown() throws Exception {
