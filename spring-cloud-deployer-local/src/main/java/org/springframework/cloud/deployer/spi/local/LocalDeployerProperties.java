@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2018 the original author or authors.
+ * Copyright 2015-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.springframework.validation.annotation.Validated;
  * @author Ilayaperumal Gopinathan
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
+ * @author David Turanski
  */
 @Validated
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
@@ -48,23 +49,25 @@ public class LocalDeployerProperties {
 	public static final String PREFIX = "spring.cloud.deployer.local";
 
 	/**
-	 * Deployer property allowing logging to be redirected to the output stream of the process that
-	 * triggered child process.
-	 * Could be set per the entire deployment (<em>i.e.</em> {@literal deployer.*.local.inheritLogging=true}) or per
-	 * individual application (<em>i.e.</em> {@literal deployer.<app-name>.local.inheritLogging=true}).
+	 * Deployer property allowing logging to be redirected to the output stream of the process
+	 * that triggered child process. Could be set per the entire deployment (<em>i.e.</em>
+	 * {@literal deployer.*.local.inheritLogging=true}) or per individual application
+	 * (<em>i.e.</em> {@literal deployer.<app-name>.local.inheritLogging=true}).
 	 */
 	public static final String INHERIT_LOGGING = PREFIX + ".inheritLogging";
 
 	/**
 	 * Remote debugging property allowing one to specify port for the remote debug session.
-	 * Must be set per individual application (<em>i.e.</em> {@literal deployer.<app-name>.local.debugPort=9999}).
+	 * Must be set per individual application (<em>i.e.</em>
+	 * {@literal deployer.<app-name>.local.debugPort=9999}).
 	 */
 	public static final String DEBUG_PORT = PREFIX + ".debugPort";
 
 	/**
-	 * Remote debugging property allowing one to specify if the startup of the application should
-	 * be suspended until remote debug session is established. Values must be either 'y' or 'n'.
-	 * Must be set per individual application (<em>i.e.</em> {@literal deployer.<app-name>.local.debugSuspend=y}).
+	 * Remote debugging property allowing one to specify if the startup of the application
+	 * should be suspended until remote debug session is established. Values must be either
+	 * 'y' or 'n'. Must be set per individual application (<em>i.e.</em>
+	 * {@literal deployer.<app-name>.local.debugSuspend=y}).
 	 */
 	public static final String DEBUG_SUSPEND = PREFIX + ".debugSuspend";
 
@@ -90,8 +93,8 @@ public class LocalDeployerProperties {
 	private boolean deleteFilesOnExit = true;
 
 	/**
-	 * Array of regular expression patterns for environment variables that
-	 * should be passed to launched applications.
+	 * Array of regular expression patterns for environment variables that should be passed to
+	 * launched applications.
 	 */
 	private String[] envVarsToInherit = LocalDeployerUtils.isWindows() ? ENV_VARS_TO_INHERIT_DEFAULTS_WIN
 			: ENV_VARS_TO_INHERIT_DEFAULTS_OTHER;
@@ -102,10 +105,8 @@ public class LocalDeployerProperties {
 	private String javaCmd = deduceJavaCommand();
 
 	/**
-	 * Maximum number of seconds to wait for application shutdown.
-	 * via the {@code /shutdown} endpoint.
-	 * A timeout value of 0 specifies an infinite timeout.
-	 * Default is 30 seconds.
+	 * Maximum number of seconds to wait for application shutdown. via the {@code /shutdown}
+	 * endpoint. A timeout value of 0 specifies an infinite timeout. Default is 30 seconds.
 	 */
 	@Min(-1)
 	private int shutdownTimeout = 30;
@@ -117,9 +118,10 @@ public class LocalDeployerProperties {
 
 	/**
 	 * Flag to indicate whether application properties are passed as command line args or in a
-	 * SPRING_APPLICATION_JSON environment variable.  Default value is {@code true}.
+	 * SPRING_APPLICATION_JSON environment variable. Default value is {@code true}.
 	 */
 	private boolean useSpringApplicationJson = true;
+
 
 	private PortRange portRange = new PortRange();
 
@@ -156,6 +158,17 @@ public class LocalDeployerProperties {
 			return "{ low=" + low + ", high=" + high + '}';
 		}
 	}
+	/**
+	 * The maximum concurrent tasks allowed for this platform instance.
+	 */
+	@Min(1)
+	private int maximumConcurrentTasks = 20;
+
+	/**
+	 * The maximum concurrent tasks allowed across all local platform instances.
+	 */
+	@Min(1)
+	private int platformMaximumConcurrentTasks = Integer.MAX_VALUE;
 
 	public String getJavaCmd() {
 		return javaCmd;
@@ -216,6 +229,14 @@ public class LocalDeployerProperties {
 
 	public PortRange getPortRange() {
 		return portRange;
+	}
+	
+	public int getMaximumConcurrentTasks() {
+		return maximumConcurrentTasks;
+	}
+
+	public void setMaximumConcurrentTasks(int maximumConcurrentTasks) {
+		this.maximumConcurrentTasks = maximumConcurrentTasks;
 	}
 
 	private String deduceJavaCommand() {
