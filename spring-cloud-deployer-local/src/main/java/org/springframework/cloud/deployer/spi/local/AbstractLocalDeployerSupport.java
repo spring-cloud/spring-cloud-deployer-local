@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -399,7 +398,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
-			int randomInt = ThreadLocalRandom.current().nextInt(properties.getPortBound().getLower(), properties.getPortBound().getUpper());
+			int randomInt = ThreadLocalRandom.current().nextInt(properties.getPortRange().getLow(), properties.getPortRange().getHigh());
 			try {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
@@ -416,7 +415,7 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (availPorts.isEmpty()) {
-			throw new IllegalStateException("Could not find an available TCP port in the range" + properties.getPortBound());
+			throw new IllegalStateException("Could not find an available TCP port in the range" + properties.getPortRange());
 		}
 
 		int finalPort = -1;
@@ -429,7 +428,7 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (finalPort == -1) {
-			throw new IllegalStateException("Could not find a free random port range " + properties.getPortBound());
+			throw new IllegalStateException("Could not find a free random port range " + properties.getPortRange());
 		}
 		logger.debug("Using Port: " + finalPort);
 		return finalPort;

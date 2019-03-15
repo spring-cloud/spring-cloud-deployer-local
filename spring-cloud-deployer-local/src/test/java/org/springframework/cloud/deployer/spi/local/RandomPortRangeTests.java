@@ -24,21 +24,20 @@ import static org.junit.Assert.assertThat;
 /**
  * @author Christian Tzolov
  */
-public class BoundedRandomPortTests {
+public class RandomPortRangeTests {
 
 	private AbstractLocalDeployerSupport localDeployerSupport;
 
 	@Before
 	public void setUp() {
 		LocalDeployerProperties properties = new LocalDeployerProperties();
-		properties.getPortBound().setLower(30001);
-		properties.getPortBound().setUpper(30213);
+		properties.getPortRange().setLow(30001);
+		properties.getPortRange().setHigh(30213);
 		localDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
 	}
 
 	@Test
 	public void portTests() {
-		//No exception should be thrown
 		for (int i = 0; i < 30; i++) {
 			System.out.println(i);
 			int port = localDeployerSupport.getRandomPort();

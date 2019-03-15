@@ -19,7 +19,6 @@ package org.springframework.cloud.deployer.spi.local;
 import java.io.File;
 import java.nio.file.Path;
 
-import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
 import org.slf4j.Logger;
@@ -122,42 +121,39 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
-	private PortBound portBound = new PortBound();
+	private PortRange portRange = new PortRange();
 
-	public static class PortBound {
-
-		/**
-		 * Lower bound for computing applications's random port.
-		 */
-		private int lower = 20000;
+	public static class PortRange {
 
 		/**
 		 * Lower bound for computing applications's random port.
 		 */
-		private int upper = 61000;
+		private int low = 20000;
 
-		public int getLower() {
-			return lower;
+		/**
+		 * Upper bound for computing applications's random port.
+		 */
+		private int high = 61000;
+
+		public int getLow() {
+			return low;
 		}
 
-		public void setLower(int lower) {
-			this.lower = lower;
+		public void setLow(int low) {
+			this.low = low;
 		}
 
-		public int getUpper() {
-			return upper;
+		public int getHigh() {
+			return high;
 		}
 
-		public void setUpper(int upper) {
-			this.upper = upper;
+		public void setHigh(int high) {
+			this.high = high;
 		}
 
 		@Override
 		public String toString() {
-			return "{" +
-					"lower=" + lower +
-					", upper=" + upper +
-					'}';
+			return "{ low=" + low + ", high=" + high + '}';
 		}
 	}
 
@@ -218,8 +214,8 @@ public class LocalDeployerProperties {
 		this.useSpringApplicationJson = useSpringApplicationJson;
 	}
 
-	public PortBound getPortBound() {
-		return portBound;
+	public PortRange getPortRange() {
+		return portRange;
 	}
 
 	private String deduceJavaCommand() {
