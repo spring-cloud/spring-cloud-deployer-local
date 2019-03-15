@@ -122,6 +122,45 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
+	private PortBound portBound = new PortBound();
+
+	public static class PortBound {
+
+		/**
+		 * Lower bound for computing applications's random port.
+		 */
+		private int lower = 20000;
+
+		/**
+		 * Lower bound for computing applications's random port.
+		 */
+		private int upper = 61000;
+
+		public int getLower() {
+			return lower;
+		}
+
+		public void setLower(int lower) {
+			this.lower = lower;
+		}
+
+		public int getUpper() {
+			return upper;
+		}
+
+		public void setUpper(int upper) {
+			this.upper = upper;
+		}
+
+		@Override
+		public String toString() {
+			return "{" +
+					"lower=" + lower +
+					", upper=" + upper +
+					'}';
+		}
+	}
+
 	public String getJavaCmd() {
 		return javaCmd;
 	}
@@ -179,6 +218,10 @@ public class LocalDeployerProperties {
 		this.useSpringApplicationJson = useSpringApplicationJson;
 	}
 
+	public PortBound getPortBound() {
+		return portBound;
+	}
+
 	private String deduceJavaCommand() {
 		String javaExecutablePath = JAVA_COMMAND;
 		String javaHome = System.getProperty("java.home");
@@ -198,7 +241,7 @@ public class LocalDeployerProperties {
 	}
 
 	@Override
-	public String toString(){
+	public String toString() {
 		return new ToStringCreator(this)
 				.append("workingDirectoriesRoot", this.workingDirectoriesRoot)
 				.append("javaOpts", this.javaOpts)

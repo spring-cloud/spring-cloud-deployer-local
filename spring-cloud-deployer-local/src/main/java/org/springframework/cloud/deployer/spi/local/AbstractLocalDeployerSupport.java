@@ -59,7 +59,7 @@ import org.springframework.web.client.RestTemplate;
  */
 public abstract class AbstractLocalDeployerSupport {
 
-	protected static Set<Integer> usedPorts = Collections.newSetFromMap(new LinkedHashMap<Integer, Boolean>(){
+	protected static Set<Integer> usedPorts = Collections.newSetFromMap(new LinkedHashMap<Integer, Boolean>() {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<Integer, Boolean> eldest) {
 			return size() > 1000;
@@ -184,7 +184,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @return the process builder
 	 */
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-												Optional<Integer> appInstanceNumber, String deploymentId) {
+			Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		String[] commands;
 
@@ -223,9 +223,9 @@ public abstract class AbstractLocalDeployerSupport {
 					appInstanceNumber.orElse(0),
 					portToUse);
 
-			if(request.getResource() instanceof DockerResource) {
+			if (request.getResource() instanceof DockerResource) {
 				builder.command().add(2, "-e");
-				builder.command().add(3, "JAVA_TOOL_OPTIONS="+ debugInstruction);
+				builder.command().add(3, "JAVA_TOOL_OPTIONS=" + debugInstruction);
 			}
 			else {
 				builder.command().add(1, debugInstruction);
@@ -243,15 +243,15 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
-											Map<String, String> appInstanceEnvToUse) {
+			Map<String, String> appInstanceEnvToUse) {
 		Map<String, String> applicationPropertiesToUse =
 				new HashMap<>(appInstanceEnvToUse);
 
 		if (useSpringApplicationJson(request)) {
 			try {
 				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
-				if(applicationPropertiesToUse.containsKey(SPRING_APPLICATION_JSON)){
-					applicationPropertiesToUse.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
+				if (applicationPropertiesToUse.containsKey(SPRING_APPLICATION_JSON)) {
+					applicationPropertiesToUse.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String, Object>>() {}));
 					applicationPropertiesToUse.remove(SPRING_APPLICATION_JSON);
 				}
 			}
@@ -346,7 +346,8 @@ public abstract class AbstractLocalDeployerSupport {
 					logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
 					return false;
 				}
-			} catch (NumberFormatException e) {
+			}
+			catch (NumberFormatException e) {
 				logger.error("The debug port {} specified for deploymentId {} can not be parsed to an integer.",
 						basePort, deploymentId);
 				return false;
@@ -377,13 +378,13 @@ public abstract class AbstractLocalDeployerSupport {
 		int port = DEFAULT_SERVER_PORT;
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
-		if(useDynamicPort) {
+		if (useDynamicPort) {
 			port = getRandomPort();
 		}
-		else if(commandLineArgPort != null) {
+		else if (commandLineArgPort != null) {
 			port = commandLineArgPort;
 		}
-		else if(request.getDefinition().getProperties().containsKey(LocalAppDeployer.SERVER_PORT_KEY)){
+		else if (request.getDefinition().getProperties().containsKey(LocalAppDeployer.SERVER_PORT_KEY)) {
 			port = Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
 		}
 
@@ -398,35 +399,37 @@ public abstract class AbstractLocalDeployerSupport {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
-			int randomInt = ThreadLocalRandom.current().nextInt(20000, 61000);
+			int randomInt = ThreadLocalRandom.current().nextInt(properties.getPortBound().getLower(), properties.getPortBound().getUpper());
 			try {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
 					// Give some time for the system to release up ports that were scanned.
 					Thread.sleep(100);
-				} catch (InterruptedException e) {
+				}
+				catch (InterruptedException e) {
 					logger.debug(e.getMessage() + "Retrying to find available ports.");
 				}
 				break;
-			} catch (IllegalStateException e) {
-				logger.debug(e.getMessage() +  "  Retrying to find available ports.");
+			}
+			catch (IllegalStateException e) {
+				logger.debug(e.getMessage() + "  Retrying to find available ports.");
 			}
 		}
 		if (availPorts.isEmpty()) {
-			throw new IllegalStateException("Could not find an available TCP port in the range 20000-61000");
+			throw new IllegalStateException("Could not find an available TCP port in the range" + properties.getPortBound());
 		}
 
 		int finalPort = -1;
 		logger.debug("Available Ports: " + availPorts);
-		for(Integer freePort : availPorts) {
+		for (Integer freePort : availPorts) {
 			if (!usedPorts.contains(freePort)) {
 				finalPort = freePort;
 				usedPorts.add(finalPort);
 				break;
 			}
 		}
-		if (finalPort == -1)  {
-			throw new IllegalStateException("Could not find a free random port range 20000-61000");
+		if (finalPort == -1) {
+			throw new IllegalStateException("Could not find a free random port range " + properties.getPortBound());
 		}
 		logger.debug("Using Port: " + finalPort);
 		return finalPort;
