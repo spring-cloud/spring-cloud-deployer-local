@@ -39,7 +39,6 @@ public class RandomPortRangeTests {
 	@Test
 	public void portTests() {
 		for (int i = 0; i < 30; i++) {
-			System.out.println(i);
 			int port = localDeployerSupport.getRandomPort();
 			assertThat(port, Matchers.greaterThanOrEqualTo(30001));
 			assertThat(port, Matchers.lessThanOrEqualTo(30213 + 5));
