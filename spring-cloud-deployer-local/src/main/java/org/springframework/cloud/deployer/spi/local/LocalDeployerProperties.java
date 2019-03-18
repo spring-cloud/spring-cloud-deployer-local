@@ -19,7 +19,6 @@ package org.springframework.cloud.deployer.spi.local;
 import java.io.File;
 import java.nio.file.Path;
 
-import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
 import org.slf4j.Logger;
@@ -122,6 +121,42 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
+	private PortRange portRange = new PortRange();
+
+	public static class PortRange {
+
+		/**
+		 * Lower bound for computing applications's random port.
+		 */
+		private int low = 20000;
+
+		/**
+		 * Upper bound for computing applications's random port.
+		 */
+		private int high = 61000;
+
+		public int getLow() {
+			return low;
+		}
+
+		public void setLow(int low) {
+			this.low = low;
+		}
+
+		public int getHigh() {
+			return high;
+		}
+
+		public void setHigh(int high) {
+			this.high = high;
+		}
+
+		@Override
+		public String toString() {
+			return "{ low=" + low + ", high=" + high + '}';
+		}
+	}
+
 	public String getJavaCmd() {
 		return javaCmd;
 	}
@@ -179,6 +214,10 @@ public class LocalDeployerProperties {
 		this.useSpringApplicationJson = useSpringApplicationJson;
 	}
 
+	public PortRange getPortRange() {
+		return portRange;
+	}
+
 	private String deduceJavaCommand() {
 		String javaExecutablePath = JAVA_COMMAND;
 		String javaHome = System.getProperty("java.home");
@@ -198,7 +237,7 @@ public class LocalDeployerProperties {
 	}
 
 	@Override
-	public String toString(){
+	public String toString() {
 		return new ToStringCreator(this)
 				.append("workingDirectoriesRoot", this.workingDirectoriesRoot)
 				.append("javaOpts", this.javaOpts)
