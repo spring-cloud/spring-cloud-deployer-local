@@ -164,12 +164,6 @@ public class LocalDeployerProperties {
 	@Min(1)
 	private int maximumConcurrentTasks = 20;
 
-	/**
-	 * The maximum concurrent tasks allowed across all local platform instances.
-	 */
-	@Min(1)
-	private int platformMaximumConcurrentTasks = Integer.MAX_VALUE;
-
 	public String getJavaCmd() {
 		return javaCmd;
 	}
