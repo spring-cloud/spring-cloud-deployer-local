@@ -82,7 +82,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		if (this.maxConcurrentExecutionsReached()) {
 			throw new IllegalStateException(
 				String.format("Cannot launch task %s. The maximum concurrent task executions is at its limit [%d].",
-					request.getDefinition().getName(), this.getLocalDeployerProperties().getMaximumConcurrentTasks())
+					request.getDefinition().getName(), this.getMaximumConcurrentTasks())
 			);
 		}
 
@@ -193,8 +193,14 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	@Override
 	public int getRunningTaskExecutionCount() {
-		return
-			new Long(running.entrySet().stream().filter( e-> e.getValue().getProcess().isAlive()).count()).intValue();
+		int runningExecutionCount = 0;
+
+		for (TaskInstance taskInstance: running.values()) {
+			if (taskInstance.getProcess().isAlive()) {
+				runningExecutionCount++;
+			}
+		}
+		return runningExecutionCount;
 	}
 
 	private boolean maxConcurrentExecutionsReached() {
