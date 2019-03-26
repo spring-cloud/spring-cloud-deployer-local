@@ -134,7 +134,7 @@ public class JavaExecutionCommandBuilderTests {
         AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
         deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
         AppDeploymentRequest appDeploymentRequest =
-                new AppDeploymentRequest(definition, new UrlResource("http://spring.io"), deploymentProperties);
+                new AppDeploymentRequest(definition, new UrlResource("https://spring.io"), deploymentProperties);
         commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
     }
 
