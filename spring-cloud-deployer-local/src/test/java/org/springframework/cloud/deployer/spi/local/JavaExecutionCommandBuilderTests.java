@@ -118,7 +118,7 @@ public class JavaExecutionCommandBuilderTests {
 
 
     @Test
-    public void testJarExecution() throws MalformedURLException {
+    public void testJarExecution() {
         AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
         deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
         AppDeploymentRequest appDeploymentRequest =
@@ -139,7 +139,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test
-    public void testMainExecution() throws MalformedURLException {
+    public void testMainExecution() {
         String mainApp = "org.foo.Main";
         String mainJar = "/tmp/myapp.jar";
         AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
@@ -155,7 +155,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testMissingMain() throws MalformedURLException {
+    public void testMissingMain() {
         String mainJar = "/tmp/myapp.jar";
         AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
         deploymentProperties.put(PREFIX + ".classpath", mainJar);
@@ -165,7 +165,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test
-    public void testCommandBuilderSpringApplicationJson() throws Exception {
+    public void testCommandBuilderSpringApplicationJson() {
         String mainJar = "/tmp/myapp.jar";
         LocalDeployerProperties properties = new LocalDeployerProperties();
         LocalAppDeployer deployer = new LocalAppDeployer(properties);
@@ -183,7 +183,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test
-    public void testCommandBuilderWithSpringApplicationJson() throws Exception {
+    public void testCommandBuilderWithSpringApplicationJson() {
         LocalDeployerProperties properties = new LocalDeployerProperties();
         LocalAppDeployer deployer = new LocalAppDeployer(properties);
         Map<String,String> applicationProperties = new HashMap<>();
@@ -204,7 +204,7 @@ public class JavaExecutionCommandBuilderTests {
 
     }
 
-    protected Resource testResource() throws MalformedURLException {
+    protected Resource testResource() {
         return new ClassPathResource("testResource.txt");
     }
 
