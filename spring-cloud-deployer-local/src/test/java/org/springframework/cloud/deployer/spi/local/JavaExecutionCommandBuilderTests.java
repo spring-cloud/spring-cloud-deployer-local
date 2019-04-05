@@ -183,7 +183,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test
-    public void testCommandBuilderWithSpringApplicationJson() throws Exception {
+    public void testCommandBuilderWithSpringApplicationJson() {
         LocalDeployerProperties properties = new LocalDeployerProperties();
         LocalAppDeployer deployer = new LocalAppDeployer(properties);
         Map<String,String> applicationProperties = new HashMap<>();
@@ -204,7 +204,7 @@ public class JavaExecutionCommandBuilderTests {
 
     }
 
-    protected Resource testResource() throws MalformedURLException {
+    protected Resource testResource() {
         return new ClassPathResource("testResource.txt");
     }
 

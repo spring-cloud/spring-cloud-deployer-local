@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.util.RuntimeVersionUtils;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
@@ -55,6 +56,7 @@ import org.springframework.web.client.RestTemplate;
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
  * @author Michael Minella
+ * @author David Turanski
  */
 public abstract class AbstractLocalDeployerSupport {
 
@@ -191,10 +193,22 @@ public abstract class AbstractLocalDeployerSupport {
 				formatApplicationProperties(request, appInstanceEnv);
 
 		if (request.getResource() instanceof DockerResource) {
+			if (logger.isInfoEnabled()) {
+			logger.info(
+					"Preparing to run a Docker container from {}. " +
+					"This may take some time if the image must be downloaded from a remote Docker registry.",
+					request.getResource());
+			}
 			commands = this.dockerCommandBuilder.buildExecutionCommand(request,
 					appPropertiesToUse, appInstanceNumber);
 		}
 		else {
+			if (request.getResource() instanceof UrlResource) {
+				logger.info(
+						"Preparing to run an application from {}. " +
+						"This may take some time if the artifact must be downloaded from a remote host.",
+						request.getResource());
+			}
 			commands = this.javaCommandBuilder.buildExecutionCommand(request,
 					appPropertiesToUse, appInstanceNumber);
 		}
