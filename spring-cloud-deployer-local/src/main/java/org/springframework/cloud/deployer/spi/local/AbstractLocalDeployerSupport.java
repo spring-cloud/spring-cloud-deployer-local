@@ -191,24 +191,18 @@ public abstract class AbstractLocalDeployerSupport {
 
 		Map<String, String> appPropertiesToUse =
 				formatApplicationProperties(request, appInstanceEnv);
+		if (logger.isInfoEnabled()) {
+			logger.info(
+				"Preparing to run an application from {}. " +
+					"This may take some time if the artifact must be downloaded from a remote host.",
+				request.getResource());
+		}
 
 		if (request.getResource() instanceof DockerResource) {
-			if (logger.isInfoEnabled()) {
-			logger.info(
-					"Preparing to run a Docker container from {}. " +
-					"This may take some time if the image must be downloaded from a remote Docker registry.",
-					request.getResource());
-			}
 			commands = this.dockerCommandBuilder.buildExecutionCommand(request,
 					appPropertiesToUse, appInstanceNumber);
 		}
 		else {
-			if (request.getResource() instanceof UrlResource) {
-				logger.info(
-						"Preparing to run an application from {}. " +
-						"This may take some time if the artifact must be downloaded from a remote host.",
-						request.getResource());
-			}
 			commands = this.javaCommandBuilder.buildExecutionCommand(request,
 					appPropertiesToUse, appInstanceNumber);
 		}
