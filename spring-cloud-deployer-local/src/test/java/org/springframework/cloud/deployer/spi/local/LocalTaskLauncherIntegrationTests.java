@@ -25,12 +25,14 @@ import java.util.UUID;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.rule.OutputCapture;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
@@ -50,6 +52,7 @@ import org.springframework.util.SocketUtils;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
 
 /**
@@ -62,11 +65,15 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Eric Bottard
  * @author Janne Valkealahti
  * @author David Turanski
+ * @author Glenn Renfro
  *
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
 public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherIntegrationTests {
+
+	@Rule
+	public OutputCapture outputCapture = new OutputCapture();
 
 	@Autowired
 	private TaskLauncher taskLauncher;
@@ -102,33 +109,34 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 	}
 
 	@Test
-	public void testPassingServerPortViaCommandLineArgs() throws InterruptedException {
+	public void testPassingServerPortViaCommandLineArgs(){
 		Map<String, String> appProperties = new HashMap();
 		appProperties.put("killDelay", "0");
 		appProperties.put("exitCode", "0");
 
 		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
 
-		Resource resource = this.testApplication();
-
-		List<String> commandLineArgs = new ArrayList<>(1);
-		// Test to ensure no issues parsing server.port command line arg.
-		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG + SocketUtils.findAvailableTcpPort(LocalTaskLauncher.DEFAULT_SERVER_PORT));
-
-		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, null, commandLineArgs);
-
-		this.log.info("Launching {}...", request.getDefinition().getName());
-
-		String launchId = this.taskLauncher().launch(request);
-		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(1)));
-		Timeout timeout = this.deploymentTimeout();
-
-		Assert.assertThat(launchId, EventuallyMatcher.eventually(this.hasStatusThat(Matchers.hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
-
-		this.taskLauncher().destroy(definition.getName());
-		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(0)));
+		basicLaunchAndValidation(definition, null);
+		assertTrue(this.outputCapture.toString().contains("Logs will be in"));
 	}
 
+
+	@Test
+	public void testInheritLogging() {
+
+		Map<String, String> appProperties = new HashMap();
+		appProperties.put("killDelay", "0");
+		appProperties.put("exitCode", "0");
+
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+
+		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
+
+		basicLaunchAndValidation(definition, deploymentProperties);
+		assertTrue(this.outputCapture.toString().contains("Logs will be inherited."));
+
+	}
 	@Test
 	public void testDeleteHistoryOnReLaunch() {
 		Map<String, String> appProperties = new HashMap<>();
@@ -174,6 +182,26 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
 
 		taskLauncher().destroy(definition.getName());
+	}
+
+	private void basicLaunchAndValidation(AppDefinition definition, Map<String, String> deploymentProperties) {
+		List<String> commandLineArgs = new ArrayList<>(1);
+		// Test to ensure no issues parsing server.port command line arg.
+		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG + SocketUtils.findAvailableTcpPort(LocalTaskLauncher.DEFAULT_SERVER_PORT));
+
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, this.testApplication(), deploymentProperties, commandLineArgs);
+
+
+		this.log.info("Launching {}...", request.getDefinition().getName());
+
+		String launchId = this.taskLauncher().launch(request);
+		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(1)));
+		Timeout timeout = this.deploymentTimeout();
+
+		Assert.assertThat(launchId, EventuallyMatcher.eventually(this.hasStatusThat(Matchers.hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+
+		this.taskLauncher().destroy(definition.getName());
+		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(0)));
 	}
 
 	@Configuration
