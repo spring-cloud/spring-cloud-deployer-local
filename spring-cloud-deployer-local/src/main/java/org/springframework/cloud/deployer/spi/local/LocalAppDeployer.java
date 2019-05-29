@@ -61,6 +61,7 @@ import org.springframework.util.StringUtils;
  * @author Thomas Risberg
  * @author Oleg Zhurakousky
  * @author Michael Minella
+ * @author Glenn Renfro
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
@@ -291,19 +292,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 						deploymentId, state));
 	}
 
-	/**
-	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by checking
-	 * deployment properties.
-	 */
-	private boolean shouldInheritLogging(AppDeploymentRequest request) {
-		boolean inheritLogging = false;
-		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)) {
-			inheritLogging = Boolean
-					.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
-		}
-		return inheritLogging;
-	}
-
 	private static class AppInstance implements Instance, AppInstanceStatus {
 
 		private final String deploymentId;
@@ -402,7 +390,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			}
 		}
 
-		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExist) throws IOException {
+		private void start(ProcessBuilder builder, Path workDir, boolean deleteOnExit) throws IOException {
 			String workDirPath = workDir.toFile().getAbsolutePath();
 
 			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout_" + instanceNumber + ".log")).toFile();
@@ -411,7 +399,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr_" + instanceNumber + ".log")).toFile();
 			this.attributes.put("stderr", stderr.getAbsolutePath());
 
-			if (deleteOnExist) {
+			if (deleteOnExit) {
 				this.stdout.deleteOnExit();
 				this.stderr.deleteOnExit();
 			}

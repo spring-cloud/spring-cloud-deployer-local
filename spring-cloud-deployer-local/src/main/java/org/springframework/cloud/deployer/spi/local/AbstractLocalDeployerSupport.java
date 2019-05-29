@@ -401,6 +401,20 @@ public abstract class AbstractLocalDeployerSupport {
 		return port;
 	}
 
+
+	/**
+	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by checking
+	 * deployment properties.
+	 */
+	protected boolean shouldInheritLogging(AppDeploymentRequest request) {
+		boolean inheritLogging = false;
+		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)) {
+			inheritLogging = Boolean
+					.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
+		}
+		return inheritLogging;
+	}
+
 	public synchronized int getRandomPort() {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.

@@ -54,6 +54,7 @@ import org.springframework.cloud.deployer.spi.task.TaskStatus;
  * @author Michael Minella
  * @author Christian Tzolov
  * @author David Turanski
+ * @author Glenn Renfro
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
@@ -106,18 +107,20 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 			int port = calcServerPort(request, useDynamicPort, args);
 
-			ProcessBuilder builder = buildProcessBuilder(request, args, Optional.empty(), taskLaunchId);
+			ProcessBuilder builder = buildProcessBuilder(request, args, Optional.empty(), taskLaunchId).inheritIO();
 
 			TaskInstance instance = new TaskInstance(builder, workDir, port);
+			if (this.shouldInheritLogging(request)) {
+				instance.start(builder);
+				logger.info("launching task {}\n    Logs will be inherited.", taskLaunchId);
 
+			}
+			else {
+				instance.start(builder, getLocalDeployerProperties().isDeleteFilesOnExit());
+				logger.info("launching task {}\n   Logs will be in {}", taskLaunchId, workDir);
+			}
 			running.put(taskLaunchId, instance);
 
-			if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
-				instance.stdout.deleteOnExit();
-				instance.stderr.deleteOnExit();
-			}
-
-			logger.info("launching task {}\n   Logs will be in {}", taskLaunchId, workDir);
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Exception trying to launch " + request, e);
@@ -250,13 +253,13 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private static class TaskInstance implements Instance {
 
-		private final Process process;
+		private Process process;
 
-		private final File workDir;
+		private final Path workDir;
 
-		private final File stdout;
+		private File stdout;
 
-		private final File stderr;
+		private File stderr;
 
 		private final URL baseUrl;
 
@@ -264,13 +267,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 		private TaskInstance(ProcessBuilder builder, Path workDir, int port) throws IOException {
 			builder.directory(workDir.toFile());
-			String workDirPath = workDir.toFile().getAbsolutePath();
-			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout.log")).toFile();
-			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr.log")).toFile();
-			builder.redirectOutput(this.stdout);
-			builder.redirectError(this.stderr);
-			this.process = builder.start();
-			this.workDir = workDir.toFile();
+			this.workDir = workDir;
 			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 			if (logger.isDebugEnabled()) {
 				logger.debug("Local Task Launcher Commands: " + String.join(",", builder.command())
@@ -313,12 +310,40 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 				return LaunchState.launching;
 			}
 		}
+		/**
+		 * Will start the process while redirecting 'out' and 'err' streams to the 'out' and 'err'
+		 * streams of this process.
+		 */
+		private void start(ProcessBuilder builder) throws IOException {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Local Task Launcher Commands: " + String.join(",", builder.command())
+						+ ", Environment: " + builder.environment());
+			}
+			this.process = builder.start();
+		}
+
+		private void start(ProcessBuilder builder, boolean deleteOnExit) throws IOException {
+			String workDirPath = workDir.toFile().getAbsolutePath();
+			this.stdout = Files.createFile(Paths.get(workDirPath, "stdout.log")).toFile();
+			this.stderr = Files.createFile(Paths.get(workDirPath, "stderr.log")).toFile();
+			builder.redirectOutput(this.stdout);
+			builder.redirectError(this.stderr);
+			this.process = builder.start();
+			if(deleteOnExit) {
+				this.stdout.deleteOnExit();
+				this.stderr.deleteOnExit();
+			}
+		}
 
 		private Map<String, String> getAttributes() {
 			HashMap<String, String> result = new HashMap<>();
-			result.put("working.dir", workDir.getAbsolutePath());
-			result.put("stdout", stdout.getAbsolutePath());
-			result.put("stderr", stderr.getAbsolutePath());
+			result.put("working.dir", workDir.toFile().getAbsolutePath());
+			if(this.stdout != null) {
+				result.put("stdout", stdout.getAbsolutePath());
+			}
+			if(this.stderr != null) {
+				result.put("stderr", stderr.getAbsolutePath());
+			}
 			result.put("url", baseUrl.toString());
 			return result;
 		}
