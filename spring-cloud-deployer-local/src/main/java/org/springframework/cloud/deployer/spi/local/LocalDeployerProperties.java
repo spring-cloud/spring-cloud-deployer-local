@@ -54,14 +54,14 @@ public class LocalDeployerProperties {
 	 * {@literal deployer.*.local.inheritLogging=true}) or per individual application
 	 * (<em>i.e.</em> {@literal deployer.<app-name>.local.inheritLogging=true}).
 	 */
-	public static final String INHERIT_LOGGING = PREFIX + ".inheritLogging";
+	public static final String INHERIT_LOGGING = PREFIX + ".inherit-logging";
 
 	/**
 	 * Remote debugging property allowing one to specify port for the remote debug session.
 	 * Must be set per individual application (<em>i.e.</em>
 	 * {@literal deployer.<app-name>.local.debugPort=9999}).
 	 */
-	public static final String DEBUG_PORT = PREFIX + ".debugPort";
+	public static final String DEBUG_PORT = PREFIX + ".debug-port";
 
 	/**
 	 * Remote debugging property allowing one to specify if the startup of the application
@@ -69,7 +69,7 @@ public class LocalDeployerProperties {
 	 * 'y' or 'n'. Must be set per individual application (<em>i.e.</em>
 	 * {@literal deployer.<app-name>.local.debugSuspend=y}).
 	 */
-	public static final String DEBUG_SUSPEND = PREFIX + ".debugSuspend";
+	public static final String DEBUG_SUSPEND = PREFIX + ".debug-suspend";
 
 	private static final Logger logger = LoggerFactory.getLogger(LocalDeployerProperties.class);
 
@@ -122,7 +122,6 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
-
 	private PortRange portRange = new PortRange();
 
 	public static class PortRange {
@@ -163,6 +162,36 @@ public class LocalDeployerProperties {
 	 */
 	@Min(1)
 	private int maximumConcurrentTasks = 20;
+
+	private Integer debugPort;
+
+	private String debugSuspend;
+
+	private boolean inheritLogging;
+
+	public Integer getDebugPort() {
+		return debugPort;
+	}
+
+	public String getDebugSuspend() {
+		return debugSuspend;
+	}
+
+	public void setDebugSuspend(String debugSuspend) {
+		this.debugSuspend = debugSuspend;
+	}
+
+	public void setDebugPort(Integer debugPort) {
+		this.debugPort = debugPort;
+	}
+
+	public boolean isInheritLogging() {
+		return inheritLogging;
+	}
+
+	public void setInheritLogging(boolean inheritLogging) {
+		this.inheritLogging = inheritLogging;
+	}
 
 	public String getJavaCmd() {
 		return javaCmd;
@@ -224,7 +253,7 @@ public class LocalDeployerProperties {
 	public PortRange getPortRange() {
 		return portRange;
 	}
-	
+
 	public int getMaximumConcurrentTasks() {
 		return maximumConcurrentTasks;
 	}

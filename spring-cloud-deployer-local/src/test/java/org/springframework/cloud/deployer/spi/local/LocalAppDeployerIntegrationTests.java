@@ -238,6 +238,35 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		deployer.undeploy(deploymentId);
 	}
 
+	@Test
+	public void testInDebugModeWithSuspendedUseCamelCase() throws Exception {
+		Map<String, String> properties = new HashMap<>();
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".debugPort", "8888");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".debugSuspend", "y");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".inheritLogging", "true");
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		AppDeployer deployer = appDeployer();
+		String deploymentId = deployer.deploy(request);
+		Thread.sleep(5000);
+		AppStatus appStatus = deployer.status(deploymentId);
+		if (resource instanceof DockerResource) {
+			try {
+				String containerId = getCommandOutput("docker ps -q --filter ancestor="+ TESTAPP_DOCKER_IMAGE_NAME);
+				String logOutput = getCommandOutput("docker logs "+ containerId);
+				assertTrue(logOutput.contains("Listening for transport dt_socket at address: 8888"));
+			} catch (IOException e) {
+			}
+		}
+		else {
+			assertEquals("deploying", appStatus.toString());
+		}
+
+		deployer.undeploy(deploymentId);
+	}
 
 	@Test
 	public void testZeroPortReportsDeployed() {

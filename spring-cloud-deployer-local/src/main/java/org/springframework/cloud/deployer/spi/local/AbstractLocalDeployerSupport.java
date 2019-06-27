@@ -33,7 +33,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
@@ -42,11 +44,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.SocketUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Base class for local app deployer and task launcher providing
- * support for common functionality.
+ * Base class for local app deployer and task launcher providing support for
+ * common functionality.
  *
  * @author Janne Valkealahti
  * @author Mark Fisher
@@ -72,8 +75,8 @@ public abstract class AbstractLocalDeployerSupport {
 
 	public static final int DEFAULT_SERVER_PORT = 8080;
 
-	private static final String USE_SPRING_APPLICATION_JSON_KEY =
-			LocalDeployerProperties.PREFIX + ".use-spring-application-json";
+	private static final String USE_SPRING_APPLICATION_JSON_KEY = LocalDeployerProperties.PREFIX
+			+ ".use-spring-application-json";
 
 	static final String SERVER_PORT_KEY = "server.port";
 
@@ -88,7 +91,6 @@ public abstract class AbstractLocalDeployerSupport {
 	private final JavaCommandBuilder javaCommandBuilder;
 
 	private final DockerCommandBuilder dockerCommandBuilder;
-
 
 	/**
 	 * Instantiates a new abstract deployer support.
@@ -105,10 +107,11 @@ public abstract class AbstractLocalDeployerSupport {
 
 	/**
 	 * Builds a {@link RestTemplate} used for calling app's shutdown endpoint. If
-	 * needed can be overridden from an implementing class. This default implementation
-	 * sets connection and read timeouts for {@link SimpleClientHttpRequestFactory} and
-	 * configures {@link RestTemplate} to use that factory. If shutdown timeout in
-	 * properties negative, returns default {@link RestTemplate} which doesn't use timeouts.
+	 * needed can be overridden from an implementing class. This default
+	 * implementation sets connection and read timeouts for
+	 * {@link SimpleClientHttpRequestFactory} and configures {@link RestTemplate} to
+	 * use that factory. If shutdown timeout in properties negative, returns default
+	 * {@link RestTemplate} which doesn't use timeouts.
 	 *
 	 * @param properties the local deployer properties
 	 * @return the rest template
@@ -124,9 +127,12 @@ public abstract class AbstractLocalDeployerSupport {
 		return new RestTemplate();
 	}
 
-	protected String buildRemoteDebugInstruction(Map<String, String> deploymentProperties, String deploymentId,
+	protected String buildRemoteDebugInstruction(LocalDeployerProperties deployerProperties, String deploymentId,
 			int instanceIndex, int port) {
-		String ds = deploymentProperties.getOrDefault(LocalDeployerProperties.DEBUG_SUSPEND, "y");
+		String ds = "y";
+		if(StringUtils.hasText(deployerProperties.getDebugSuspend())) {
+			ds = deployerProperties.getDebugSuspend();
+		}
 		StringBuilder debugCommandBuilder = new StringBuilder();
 
 		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
@@ -154,15 +160,12 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @return the local runtime environment info
 	 */
 	protected RuntimeEnvironmentInfo createRuntimeEnvironmentInfo(Class<?> spiClass, Class<?> implementationClass) {
-		return new RuntimeEnvironmentInfo.Builder()
-				.spiClass(spiClass)
+		return new RuntimeEnvironmentInfo.Builder().spiClass(spiClass)
 				.implementationName(implementationClass.getSimpleName())
-				.implementationVersion(RuntimeVersionUtils.getVersion(implementationClass))
-				.platformType("Local")
+				.implementationVersion(RuntimeVersionUtils.getVersion(implementationClass)).platformType("Local")
 				.platformApiVersion(System.getProperty("os.name") + " " + System.getProperty("os.version"))
 				.platformClientVersion(System.getProperty("os.version"))
-				.platformHostVersion(System.getProperty("os.version"))
-				.build();
+				.platformHostVersion(System.getProperty("os.version")).build();
 	}
 
 	/**
@@ -175,11 +178,11 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Builds the process builder.  Application properties are expected to be calculated
-	 * prior to this method.  No additional consolidation of application properties is
-	 * done while creating the {@code ProcessBuilder}.
+	 * Builds the process builder. Application properties are expected to be
+	 * calculated prior to this method. No additional consolidation of application
+	 * properties is done while creating the {@code ProcessBuilder}.
 	 *
-	 * @param request the request
+	 * @param request        the request
 	 * @param appInstanceEnv the instance environment variables
 	 * @return the process builder
 	 */
@@ -188,22 +191,19 @@ public abstract class AbstractLocalDeployerSupport {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
 		String[] commands;
 
-		Map<String, String> appPropertiesToUse =
-				formatApplicationProperties(request, appInstanceEnv);
+		Map<String, String> appPropertiesToUse = formatApplicationProperties(request, appInstanceEnv);
 		if (logger.isInfoEnabled()) {
 			logger.info(
-				"Preparing to run an application from {}. " +
-					"This may take some time if the artifact must be downloaded from a remote host.",
-				request.getResource());
+					"Preparing to run an application from {}. "
+							+ "This may take some time if the artifact must be downloaded from a remote host.",
+					request.getResource());
 		}
 
 		if (request.getResource() instanceof DockerResource) {
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request,
-					appPropertiesToUse, appInstanceNumber);
+			commands = this.dockerCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
 		}
 		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request,
-					appPropertiesToUse, appInstanceNumber);
+			commands = this.javaCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
 		}
 
 		// tweak escaping double quotes needed for windows
@@ -219,15 +219,14 @@ public abstract class AbstractLocalDeployerSupport {
 			builder.environment().putAll(appPropertiesToUse);
 		}
 
-		if (this.containsValidDebugPort(request.getDeploymentProperties(), deploymentId)) {
+		LocalDeployerProperties bindDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
 
-			int portToUse = calculateDebugPort(request.getDeploymentProperties(), appInstanceNumber.orElse(0));
+		if (this.containsValidDebugPort(bindDeployerProperties, deploymentId)) {
 
-			String debugInstruction = this.buildRemoteDebugInstruction(
-					request.getDeploymentProperties(),
-					deploymentId,
-					appInstanceNumber.orElse(0),
-					portToUse);
+			int portToUse = calculateDebugPort(bindDeployerProperties, appInstanceNumber.orElse(0));
+
+			String debugInstruction = this.buildRemoteDebugInstruction(bindDeployerProperties, deploymentId,
+					appInstanceNumber.orElse(0), portToUse);
 
 			if (request.getResource() instanceof DockerResource) {
 				builder.command().add(2, "-e");
@@ -239,13 +238,15 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
-		logger.debug(String.format("Environment Variables to be used : %s",
-				builder.environment()
-						.entrySet()
-						.stream()
-						.map(entry -> entry.getKey() + " : " + entry.getValue())
-						.collect(Collectors.joining(", "))));
+		logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
+				.map(entry -> entry.getKey() + " : " + entry.getValue()).collect(Collectors.joining(", "))));
 		return builder;
+	}
+
+	private LocalDeployerProperties bindDeploymentProperties(Map<String, String> properties) {
+		return new Binder(new MapConfigurationPropertySource(properties))
+				.bind(LocalDeployerProperties.PREFIX, Bindable.of(LocalDeployerProperties.class))
+				.orElseCreate(LocalDeployerProperties.class);
 	}
 
 	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
@@ -337,25 +338,18 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Determines if there is a valid debug port specified in the deployment properites.
-	 * @param deploymentProperties the deployment properties to validate
-	 * @param deploymentId the deployment Id for logging purposes
+	 * Determines if there is a valid debug port specified in the deployment
+	 * properites.
+	 *
+	 * @param deployerProperties the deployment properties to validate
+	 * @param deploymentId       the deployment Id for logging purposes
 	 * @return true if there is a valid debug port, false otherwise
 	 */
-	protected boolean containsValidDebugPort(Map<String, String> deploymentProperties, String deploymentId) {
+	protected boolean containsValidDebugPort(LocalDeployerProperties deployerProperties, String deploymentId) {
 		boolean validDebugPort = false;
-		if (deploymentProperties.containsKey(LocalDeployerProperties.DEBUG_PORT)) {
-			String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
-			try {
-				int port = Integer.parseInt(basePort);
-				if (port <= 0) {
-					logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
-					return false;
-				}
-			}
-			catch (NumberFormatException e) {
-				logger.error("The debug port {} specified for deploymentId {} can not be parsed to an integer.",
-						basePort, deploymentId);
+		if (deployerProperties.getDebugPort() != null) {
+			if (deployerProperties.getDebugPort() <= 0) {
+				logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
 				return false;
 			}
 			validDebugPort = true;
@@ -364,15 +358,17 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Gets the base debug port value and adds the instance count.  Assumes {@link #containsValidDebugPort(Map, String)}
-	 * has been called before to validate the deployment properties.
-	 * @param deploymentProperties deployment properties with a valid value of debug port
-	 * @param instanceIndex the index of the application to deploy
+	 * Gets the base debug port value and adds the instance count. Assumes
+	 * {@link #containsValidDebugPort(LocalDeployerProperties, String)} has been
+	 * called before to validate the deployment properties.
+	 *
+	 * @param deployerProperties deployment properties with a valid value of debug
+	 *                           port
+	 * @param instanceIndex      the index of the application to deploy
 	 * @return the value of adding the debug port + instance index.
 	 */
-	protected int calculateDebugPort(Map<String, String> deploymentProperties, int instanceIndex) {
-		String basePort = deploymentProperties.get(LocalDeployerProperties.DEBUG_PORT);
-		return Integer.parseInt(basePort) + instanceIndex;
+	protected int calculateDebugPort(LocalDeployerProperties deployerProperties, int instanceIndex) {
+		return deployerProperties.getDebugPort() + instanceIndex;
 	}
 
 	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
@@ -407,12 +403,8 @@ public abstract class AbstractLocalDeployerSupport {
 	 * deployment properties.
 	 */
 	protected boolean shouldInheritLogging(AppDeploymentRequest request) {
-		boolean inheritLogging = false;
-		if (request.getDeploymentProperties().containsKey(LocalDeployerProperties.INHERIT_LOGGING)) {
-			inheritLogging = Boolean
-					.parseBoolean(request.getDeploymentProperties().get(LocalDeployerProperties.INHERIT_LOGGING));
-		}
-		return inheritLogging;
+		LocalDeployerProperties bindDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
+		return bindDeployerProperties.isInheritLogging();
 	}
 
 	public synchronized int getRandomPort() {
