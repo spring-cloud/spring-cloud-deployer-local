@@ -210,6 +210,10 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		return getRunningTaskExecutionCount() >= getMaximumConcurrentTasks();
 	}
 
+	@Override
+	public String getLog(String id) {
+		return "Not implemented yet";
+	}
 
 	@PreDestroy
 	public void shutdown() throws Exception {
