@@ -254,6 +254,11 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	}
 
 	@Override
+	public String getLog(String id) {
+		return "Not yet implemented";
+	}
+
+	@Override
 	public RuntimeEnvironmentInfo environmentInfo() {
 		return super.createRuntimeEnvironmentInfo(AppDeployer.class, this.getClass());
 	}
