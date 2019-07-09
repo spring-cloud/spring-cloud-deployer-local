@@ -18,6 +18,7 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +50,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.util.SocketUtils;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
@@ -66,6 +68,7 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Janne Valkealahti
  * @author David Turanski
  * @author Glenn Renfro
+ * @author Ilayaperumal Gopinathan
  *
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
@@ -137,6 +140,26 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		assertTrue(this.outputCapture.toString().contains("Logs will be inherited."));
 
 	}
+
+	@Test
+	public void testAppLogRetrieval() {
+		Map<String, String> appProperties = new HashMap<>();
+		appProperties.put("killDelay", "0");
+		appProperties.put("exitCode", "0");
+		AppDefinition definition = new AppDefinition(randomName(), appProperties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		String launchId1 = taskLauncher().launch(request);
+
+		Timeout timeout = deploymentTimeout();
+
+		assertThat(launchId1, eventually(hasStatusThat(
+				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		String logContent = taskLauncher().getLog(launchId1);
+		assertThat(logContent, containsString("Starting DeployerIntegrationTestApplication"));
+	}
+
 	@Test
 	public void testDeleteHistoryOnReLaunch() {
 		Map<String, String> appProperties = new HashMap<>();

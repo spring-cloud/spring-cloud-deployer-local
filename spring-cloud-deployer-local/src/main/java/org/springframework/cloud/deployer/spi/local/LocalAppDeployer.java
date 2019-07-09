@@ -17,7 +17,9 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
@@ -46,6 +48,7 @@ import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.util.Assert;
+import org.springframework.util.FileCopyUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -255,7 +258,20 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public String getLog(String id) {
-		return "Not yet implemented";
+		List<AppInstance> instances = running.get(id);
+		StringBuilder stringBuilder = new StringBuilder();
+		if (instances != null) {
+			for (AppInstance instance : instances) {
+				String stderr = instance.getStdErr();
+				if (StringUtils.hasText(stderr)) {
+					stringBuilder.append(stderr);
+				}
+				else {
+					stringBuilder.append(instance.getStdOut());
+				}
+			}
+		}
+		return stringBuilder.toString();
 	}
 
 	@Override
@@ -364,6 +380,24 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			}
 			catch (IOException e) {
 				return DeploymentState.deploying;
+			}
+		}
+
+		public String getStdOut() {
+			try {
+			return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stdout)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
+			}
+		}
+
+		public String getStdErr() {
+			try {
+				return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stderr)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
 			}
 		}
 

@@ -17,7 +17,9 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.URL;
@@ -41,6 +43,8 @@ import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
 import org.springframework.cloud.deployer.spi.task.TaskStatus;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * A {@link TaskLauncher} implementation that spins off a new JVM process per task launch.
@@ -176,6 +180,18 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	}
 
 	@Override
+	public String getLog(String id) {
+		TaskInstance instance = running.get(id);
+		if (instance != null) {
+			String stderr = instance.getStdErr();
+			return (StringUtils.hasText(stderr)) ? stderr : instance.getStdOut();
+		}
+		else {
+			return "Log could not be retrieved as the task instance is not running.";
+		}
+	}
+
+	@Override
 	public void cleanup(String id) {
 	}
 
@@ -208,11 +224,6 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 	private boolean maxConcurrentExecutionsReached() {
 		return getRunningTaskExecutionCount() >= getMaximumConcurrentTasks();
-	}
-
-	@Override
-	public String getLog(String id) {
-		return "Not implemented yet";
 	}
 
 	@PreDestroy
@@ -314,6 +325,25 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 				return LaunchState.launching;
 			}
 		}
+
+		public String getStdOut() {
+			try {
+				return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stdout)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
+			}
+		}
+
+		public String getStdErr() {
+			try {
+				return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stderr)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
+			}
+		}
+
 		/**
 		 * Will start the process while redirecting 'out' and 'err' streams to the 'out' and 'err'
 		 * streams of this process.

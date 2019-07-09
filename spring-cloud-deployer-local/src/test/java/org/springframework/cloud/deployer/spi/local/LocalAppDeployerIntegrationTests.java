@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 
 import static org.hamcrest.CoreMatchers.anyOf;
@@ -162,6 +163,22 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 			assertThat(env, containsString("\"spring.cloud.application.guid\""));
 			assertThat(env, containsString("\"spring.cloud.stream.instanceIndex\""));
 		}
+	}
+
+	@Test
+	public void testAppLogRetrieval() {
+		Map<String, String> properties = new HashMap<>();
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+		String deploymentId = appDeployer().deploy(request);
+		Timeout timeout = deploymentTimeout();
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+		String logContent = appDeployer().getLog(deploymentId);
+		assertThat(logContent, containsString("Starting DeployerIntegrationTestApplication"));
 	}
 
 	@Test
