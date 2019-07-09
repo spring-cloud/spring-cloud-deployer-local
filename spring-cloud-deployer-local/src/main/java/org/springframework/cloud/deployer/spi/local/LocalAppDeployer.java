@@ -17,7 +17,9 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
@@ -36,6 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PreDestroy;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import org.codehaus.plexus.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +52,8 @@ import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.util.Assert;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -255,7 +263,27 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public String getLog(String id) {
-		return "Not yet implemented";
+		List<AppInstance> instances = running.get(id);
+		Map<String, String> logMap = new HashMap<>();
+		if (instances != null) {
+			for (AppInstance instance : instances) {
+				String stderr = instance.getStdErr();
+				if (StringUtils.hasText(stderr)) {
+					logMap.put(instance.deploymentId, stderr);
+				}
+				else {
+					logMap.put(instance.deploymentId, instance.getStdOut());
+				}
+			}
+		}
+		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+		try {
+			return objectMapper.writeValueAsString(logMap);
+		}
+		catch (JsonProcessingException e) {
+			throw new IllegalArgumentException("Could not serialize logs", e);
+		}
 	}
 
 	@Override
@@ -364,6 +392,24 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			}
 			catch (IOException e) {
 				return DeploymentState.deploying;
+			}
+		}
+
+		public String getStdOut() {
+			try {
+			return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stdout)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
+			}
+		}
+
+		public String getStdErr() {
+			try {
+				return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stderr)));
+			}
+			catch (IOException e) {
+				return "Log retrieval returned " + e.getMessage();
 			}
 		}
 
