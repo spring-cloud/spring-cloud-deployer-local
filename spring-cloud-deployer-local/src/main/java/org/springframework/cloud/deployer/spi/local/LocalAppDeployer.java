@@ -38,10 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.PreDestroy;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import org.codehaus.plexus.util.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +49,6 @@ import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
 import org.springframework.util.Assert;
 import org.springframework.util.FileCopyUtils;
-import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -264,26 +259,19 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	@Override
 	public String getLog(String id) {
 		List<AppInstance> instances = running.get(id);
-		Map<String, String> logMap = new HashMap<>();
+		StringBuilder stringBuilder = new StringBuilder();
 		if (instances != null) {
 			for (AppInstance instance : instances) {
 				String stderr = instance.getStdErr();
 				if (StringUtils.hasText(stderr)) {
-					logMap.put(instance.deploymentId, stderr);
+					stringBuilder.append(stderr);
 				}
 				else {
-					logMap.put(instance.deploymentId, instance.getStdOut());
+					stringBuilder.append(instance.getStdOut());
 				}
 			}
 		}
-		ObjectMapper objectMapper = new ObjectMapper();
-		objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-		try {
-			return objectMapper.writeValueAsString(logMap);
-		}
-		catch (JsonProcessingException e) {
-			throw new IllegalArgumentException("Could not serialize logs", e);
-		}
+		return stringBuilder.toString();
 	}
 
 	@Override
