@@ -17,15 +17,22 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -47,6 +54,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.util.Assert;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.client.RestTemplate;
 
 import static org.hamcrest.CoreMatchers.anyOf;
@@ -286,15 +294,29 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	}
 
 	@Test
-	public void testZeroPortReportsDeployed() {
+	public void testZeroPortReportsDeployed() throws IOException {
 		Map<String, String> properties = new HashMap<>();
 		properties.put("server.port", "0");
+		Path tmpPath = new File(System.getProperty("java.io.tmpdir")).toPath();
+		Path customWorkDirRoot = tmpPath.resolve("spring-cloud-deployer-app-workdir");
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".working-directories-root", customWorkDirRoot.toFile().getAbsolutePath());
+
 		AppDefinition definition = new AppDefinition(randomName(), properties);
 		Resource resource = testApplication();
-		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
+
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		List<Path> beforeDirs = new ArrayList<>();
+		beforeDirs.add(customWorkDirRoot);
+		if (Files.exists(customWorkDirRoot)) {
+			beforeDirs = Files.walk(customWorkDirRoot, 1)
+					.filter(path -> Files.isDirectory(path))
+					.collect(Collectors.toList());
+		}
+
 
 		log.info("Deploying {}...", request.getDefinition().getName());
-
 		String deploymentId = appDeployer().deploy(request);
 		Timeout timeout = deploymentTimeout();
 		assertThat(deploymentId, eventually(hasStatusThat(
@@ -306,6 +328,17 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		appDeployer().undeploy(deploymentId);
 		assertThat(deploymentId, eventually(hasStatusThat(
 				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+
+
+		List<Path> afterDirs = Files.walk(customWorkDirRoot, 1)
+				.filter(path -> Files.isDirectory(path))
+				.filter(path -> !path.getFileName().toString().startsWith("."))
+				.collect(Collectors.toList());
+		assertThat("Additional working directory not created", afterDirs.size(), CoreMatchers.is(beforeDirs.size()+1));
+
+		// clean up if test passed
+		FileSystemUtils.deleteRecursively(customWorkDirRoot);
+
 	}
 
 	private String getCommandOutput(String cmd) throws IOException {

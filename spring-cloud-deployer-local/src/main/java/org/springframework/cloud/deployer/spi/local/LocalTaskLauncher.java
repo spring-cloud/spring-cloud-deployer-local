@@ -62,8 +62,6 @@ import org.springframework.util.StringUtils;
  */
 public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements TaskLauncher {
 
-	private Path logPathRoot;
-
 	private static final Logger logger = LoggerFactory.getLogger(LocalTaskLauncher.class);
 
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
@@ -103,9 +101,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 
 		try {
 
-			Path dir = createLogDir(request);
-
-			Path workDir = createWorkingDir(taskLaunchId, dir);
+			Path workDir = createWorkingDir(request.getDeploymentProperties(), taskLaunchId);
 
 			boolean useDynamicPort = isDynamicPort(request);
 
@@ -234,36 +230,15 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		taskInstanceHistory.clear();
 	}
 
-	private Path createWorkingDir(String taskLaunchId, Path dir) throws IOException {
+	private Path createWorkingDir(Map<String, String> deploymentProperties, String taskLaunchId) throws IOException {
+		LocalDeployerProperties localDeployerPropertiesToUse = bindDeploymentProperties(deploymentProperties);
 
-		Path workDir = Files.createDirectory(Paths.get(dir.toFile().getAbsolutePath(),
-				taskLaunchId));
-
-		if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
+		Path workingDirectoryRoot = Files.createDirectories(localDeployerPropertiesToUse.getWorkingDirectoriesRoot());
+		Path workDir = Files.createDirectories(workingDirectoryRoot.resolve(Long.toString(System.nanoTime())).resolve(taskLaunchId));
+		if (localDeployerPropertiesToUse.isDeleteFilesOnExit()) {
 			workDir.toFile().deleteOnExit();
 		}
-
 		return workDir;
-	}
-
-	private Path createLogDir(AppDeploymentRequest request) throws IOException {
-
-		if (this.logPathRoot == null) {
-			this.logPathRoot =
-					Files.createTempDirectory(getLocalDeployerProperties().getWorkingDirectoriesRoot(),
-							request.getDefinition().getName());
-		}
-
-		String qualifiedName = Long.toString(System.nanoTime());
-
-		Path dir = Paths.get(logPathRoot.toFile().getAbsolutePath(), qualifiedName);
-
-		if (!Files.exists(dir)) {
-			Files.createDirectory(dir);
-			dir.toFile().deleteOnExit();
-		}
-
-		return dir;
 	}
 
 	private static class TaskInstance implements Instance {

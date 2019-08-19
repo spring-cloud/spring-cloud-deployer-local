@@ -243,7 +243,7 @@ public abstract class AbstractLocalDeployerSupport {
 		return builder;
 	}
 
-	private LocalDeployerProperties bindDeploymentProperties(Map<String, String> properties) {
+	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> properties) {
 		return new Binder(new MapConfigurationPropertySource(properties))
 				.bind(LocalDeployerProperties.PREFIX, Bindable.of(LocalDeployerProperties.class))
 				.orElseCreate(LocalDeployerProperties.class);
