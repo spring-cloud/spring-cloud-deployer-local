@@ -243,10 +243,16 @@ public abstract class AbstractLocalDeployerSupport {
 		return builder;
 	}
 
-	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> properties) {
-		return new Binder(new MapConfigurationPropertySource(properties))
-				.bind(LocalDeployerProperties.PREFIX, Bindable.of(LocalDeployerProperties.class))
-				.orElseCreate(LocalDeployerProperties.class);
+	/**
+	 * This will merge the deployment properties that were passed in at runtime with the deployment properties
+	 * of the Deployer instance.
+	 * @param runtimeDeploymentProperties deployment properties passed in at runtime
+	 * @return merged deployer properties
+	 */
+	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
+		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
+				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(this.properties))
+				.orElse(this.properties);
 	}
 
 	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
