@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,6 +38,7 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -303,7 +305,7 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		Path customWorkDirRoot = tmpPath.resolve("test-default-directory");
 		localDeployerProperties.setWorkingDirectoriesRoot(customWorkDirRoot.toFile().getAbsolutePath());
 
-
+		// Create a new LocalAppDeployer using a working directory that is different from the default value.
 		AppDeployer appDeployer = new LocalAppDeployer(localDeployerProperties);
 
 		List<Path> beforeDirs = getBeforePaths(customWorkDirRoot);
@@ -391,6 +393,9 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	}
 
 	private List<Path> getAfterPaths(Path customWorkDirRoot) throws IOException {
+		if (!Files.exists(customWorkDirRoot)) {
+			return new ArrayList<>();
+		}
 		return Files.walk(customWorkDirRoot, 1)
 					.filter(path -> Files.isDirectory(path))
 					.filter(path -> !path.getFileName().toString().startsWith("."))

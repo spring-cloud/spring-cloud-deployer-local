@@ -210,6 +210,10 @@ public class LocalDeployerProperties {
 		this.workingDirectoriesRoot = Paths.get(workingDirectoriesRoot);
 	}
 
+	public void setWorkingDirectoriesRoot(Path workingDirectoriesRoot) {
+		this.workingDirectoriesRoot = workingDirectoriesRoot;
+	}
+
 	public boolean isDeleteFilesOnExit() {
 		return deleteFilesOnExit;
 	}
