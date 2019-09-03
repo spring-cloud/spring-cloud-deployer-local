@@ -72,7 +72,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
 	private final Map<String, List<AppInstance>> running = new ConcurrentHashMap<>();
-	private Path logPathRoot;
 
 	/**
 	 * Instantiates a new local app deployer.
@@ -81,12 +80,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	 */
 	public LocalAppDeployer(LocalDeployerProperties properties) {
 		super(properties);
-		try {
-			this.logPathRoot = Files.createTempDirectory(properties.getWorkingDirectoriesRoot(), "spring-cloud-deployer-");
-		}
-		catch (IOException e) {
-			throw new RuntimeException("Could not create workdir root: " + properties.getWorkingDirectoriesRoot(), e);
-		}
 	}
 
 	/**
@@ -160,9 +153,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 
 		try {
-			Path deploymentGroupDir = createLogDir(group);
-
-			Path workDir = createWorkingDir(deploymentId, deploymentGroupDir);
+			Path workDir = createWorkingDir(request.getDeploymentProperties(), deploymentId);
 
 			String countProperty = request.getDeploymentProperties().get(COUNT_PROPERTY_KEY);
 			int count = (StringUtils.hasText(countProperty)) ? Integer.parseInt(countProperty) : 1;
@@ -286,23 +277,16 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
-	private Path createWorkingDir(String deploymentId, Path deploymentGroupDir) throws IOException {
-		Path workDir = Files
-				.createDirectory(Paths.get(deploymentGroupDir.toFile().getAbsolutePath(), deploymentId));
+	private Path createWorkingDir(Map<String, String> deploymentProperties, String deploymentId) throws IOException {
+		LocalDeployerProperties localDeployerPropertiesToUse = bindDeploymentProperties(deploymentProperties);
+
+		Path workingDirectoryRoot = Files.createDirectories(localDeployerPropertiesToUse.getWorkingDirectoriesRoot());
+		Path workDir = Files.createDirectories(workingDirectoryRoot.resolve(Long.toString(System.currentTimeMillis())).resolve(deploymentId));
+
 		if (getLocalDeployerProperties().isDeleteFilesOnExit()) {
 			workDir.toFile().deleteOnExit();
 		}
 		return workDir;
-	}
-
-	private Path createLogDir(String group) throws IOException {
-		Path deploymentGroupDir = Paths.get(logPathRoot.toFile().getAbsolutePath(),
-				group + "-" + System.currentTimeMillis());
-		if (!Files.exists(deploymentGroupDir)) {
-			Files.createDirectory(deploymentGroupDir);
-			deploymentGroupDir.toFile().deleteOnExit();
-		}
-		return deploymentGroupDir;
 	}
 
 	private void validateStatus(String deploymentId) {

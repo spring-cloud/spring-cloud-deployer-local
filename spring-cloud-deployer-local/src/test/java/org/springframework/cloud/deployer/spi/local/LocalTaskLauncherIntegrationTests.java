@@ -16,13 +16,20 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.FileVisitOption;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
@@ -48,6 +55,7 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.util.SocketUtils;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -125,7 +133,7 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 
 
 	@Test
-	public void testInheritLogging() {
+	public void testInheritLoggingAndWorkDir() throws IOException {
 
 		Map<String, String> appProperties = new HashMap();
 		appProperties.put("killDelay", "0");
@@ -133,12 +141,30 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 
 		Map<String, String> deploymentProperties = new HashMap<>();
 		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
+		Path tmpPath = new File(System.getProperty("java.io.tmpdir")).toPath();
+		Path customWorkDirRoot = tmpPath.resolve("spring-cloud-deployer-task-workdir");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".working-directories-root", customWorkDirRoot.toFile().getAbsolutePath());
 
 		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
+
+		List<Path> beforeDirs = new ArrayList<>();
+		beforeDirs.add(customWorkDirRoot);
+		if (Files.exists(customWorkDirRoot)) {
+			beforeDirs = Files.walk(customWorkDirRoot, 1)
+					.filter(path -> Files.isDirectory(path))
+					.collect(Collectors.toList());
+		}
 
 		basicLaunchAndValidation(definition, deploymentProperties);
 		assertTrue(this.outputCapture.toString().contains("Logs will be inherited."));
 
+		List<Path> afterDirs = Files.walk(customWorkDirRoot, 1)
+				.filter(path -> Files.isDirectory(path))
+				.collect(Collectors.toList());
+		assertThat("Additional working directory not created", afterDirs.size(), is(beforeDirs.size()+1));
+
+		// clean up if test passed
+		FileSystemUtils.deleteRecursively(customWorkDirRoot);
 	}
 
 	@Test
