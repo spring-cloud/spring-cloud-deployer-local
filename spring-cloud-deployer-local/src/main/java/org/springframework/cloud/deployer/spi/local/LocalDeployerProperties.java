@@ -18,6 +18,7 @@ package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.validation.constraints.Min;
 
@@ -206,7 +207,11 @@ public class LocalDeployerProperties {
 	}
 
 	public void setWorkingDirectoriesRoot(String workingDirectoriesRoot) {
-		this.workingDirectoriesRoot = new File(workingDirectoriesRoot).toPath();
+		this.workingDirectoriesRoot = Paths.get(workingDirectoriesRoot);
+	}
+
+	public void setWorkingDirectoriesRoot(Path workingDirectoriesRoot) {
+		this.workingDirectoriesRoot = workingDirectoriesRoot;
 	}
 
 	public boolean isDeleteFilesOnExit() {

@@ -17,16 +17,28 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +58,7 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
-import org.springframework.util.Assert;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.client.RestTemplate;
 
 import static org.hamcrest.CoreMatchers.anyOf;
@@ -286,15 +298,79 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 	}
 
 	@Test
-	public void testZeroPortReportsDeployed() {
+	public void testUseDefaultDeployerProperties()  throws IOException {
+
+		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
+		Path tmpPath = new File(System.getProperty("java.io.tmpdir")).toPath();
+		Path customWorkDirRoot = tmpPath.resolve("test-default-directory");
+		localDeployerProperties.setWorkingDirectoriesRoot(customWorkDirRoot.toFile().getAbsolutePath());
+
+		// Create a new LocalAppDeployer using a working directory that is different from the default value.
+		AppDeployer appDeployer = new LocalAppDeployer(localDeployerProperties);
+
+		List<Path> beforeDirs = getBeforePaths(customWorkDirRoot);
+
 		Map<String, String> properties = new HashMap<>();
 		properties.put("server.port", "0");
 		AppDefinition definition = new AppDefinition(randomName(), properties);
 		Resource resource = testApplication();
 		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource);
 
-		log.info("Deploying {}...", request.getDefinition().getName());
 
+		// Deploy
+		String deploymentId = appDeployer.deploy(request);
+		Timeout timeout = deploymentTimeout();
+		assertThat(deploymentId, eventually(hasStatusThat(
+				appDeployer,
+				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+		timeout = undeploymentTimeout();
+		// Undeploy
+		appDeployer.undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				appDeployer,
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+
+		List<Path> afterDirs = getAfterPaths(customWorkDirRoot);
+		assertThat("Additional working directory not created", afterDirs.size(), CoreMatchers.is(beforeDirs.size()+1));
+
+	}
+
+	protected Matcher<String> hasStatusThat(final AppDeployer appDeployer, final Matcher<AppStatus> statusMatcher) {
+		return new BaseMatcher<String>() {
+			private AppStatus status;
+
+			public boolean matches(Object item) {
+				this.status = appDeployer.status((String)item);
+				return statusMatcher.matches(this.status);
+			}
+
+			public void describeMismatch(Object item, Description mismatchDescription) {
+				mismatchDescription.appendText("status of ").appendValue(item).appendText(" ");
+				statusMatcher.describeMismatch(this.status, mismatchDescription);
+			}
+
+			public void describeTo(Description description) {
+				statusMatcher.describeTo(description);
+			}
+		};
+	}
+
+	@Test
+	public void testZeroPortReportsDeployed() throws IOException {
+		Map<String, String> properties = new HashMap<>();
+		properties.put("server.port", "0");
+		Path tmpPath = new File(System.getProperty("java.io.tmpdir")).toPath();
+		Path customWorkDirRoot = tmpPath.resolve("spring-cloud-deployer-app-workdir");
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".working-directories-root", customWorkDirRoot.toFile().getAbsolutePath());
+
+		AppDefinition definition = new AppDefinition(randomName(), properties);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		List<Path> beforeDirs = getBeforePaths(customWorkDirRoot);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
 		String deploymentId = appDeployer().deploy(request);
 		Timeout timeout = deploymentTimeout();
 		assertThat(deploymentId, eventually(hasStatusThat(
@@ -306,6 +382,35 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		appDeployer().undeploy(deploymentId);
 		assertThat(deploymentId, eventually(hasStatusThat(
 				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+
+
+		List<Path> afterDirs = getAfterPaths(customWorkDirRoot);
+		assertThat("Additional working directory not created", afterDirs.size(), CoreMatchers.is(beforeDirs.size()+1));
+
+		// clean up if test passed
+		FileSystemUtils.deleteRecursively(customWorkDirRoot);
+
+	}
+
+	private List<Path> getAfterPaths(Path customWorkDirRoot) throws IOException {
+		if (!Files.exists(customWorkDirRoot)) {
+			return new ArrayList<>();
+		}
+		return Files.walk(customWorkDirRoot, 1)
+					.filter(path -> Files.isDirectory(path))
+					.filter(path -> !path.getFileName().toString().startsWith("."))
+					.collect(Collectors.toList());
+	}
+
+	private List<Path> getBeforePaths(Path customWorkDirRoot) throws IOException {
+		List<Path> beforeDirs = new ArrayList<>();
+		beforeDirs.add(customWorkDirRoot);
+		if (Files.exists(customWorkDirRoot)) {
+			beforeDirs = Files.walk(customWorkDirRoot, 1)
+					.filter(path -> Files.isDirectory(path))
+					.collect(Collectors.toList());
+		}
+		return beforeDirs;
 	}
 
 	private String getCommandOutput(String cmd) throws IOException {

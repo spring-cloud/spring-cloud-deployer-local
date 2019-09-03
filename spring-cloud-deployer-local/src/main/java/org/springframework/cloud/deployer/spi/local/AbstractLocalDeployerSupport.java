@@ -33,6 +33,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
@@ -84,7 +85,7 @@ public abstract class AbstractLocalDeployerSupport {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private final LocalDeployerProperties properties;
+	private final LocalDeployerProperties localDeployerProperties;
 
 	private final RestTemplate restTemplate;
 
@@ -95,14 +96,14 @@ public abstract class AbstractLocalDeployerSupport {
 	/**
 	 * Instantiates a new abstract deployer support.
 	 *
-	 * @param properties the local deployer properties
+	 * @param localDeployerProperties the local deployer properties
 	 */
-	public AbstractLocalDeployerSupport(LocalDeployerProperties properties) {
-		Assert.notNull(properties, "LocalDeployerProperties must not be null");
-		this.properties = properties;
-		this.javaCommandBuilder = new JavaCommandBuilder(properties);
+	public AbstractLocalDeployerSupport(LocalDeployerProperties localDeployerProperties) {
+		Assert.notNull(localDeployerProperties, "LocalDeployerProperties must not be null");
+		this.localDeployerProperties = localDeployerProperties;
+		this.javaCommandBuilder = new JavaCommandBuilder(localDeployerProperties);
 		this.dockerCommandBuilder = new DockerCommandBuilder();
-		this.restTemplate = buildRestTemplate(properties);
+		this.restTemplate = buildRestTemplate(localDeployerProperties);
 	}
 
 	/**
@@ -174,7 +175,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 * @return the local deployer properties
 	 */
 	final protected LocalDeployerProperties getLocalDeployerProperties() {
-		return properties;
+		return localDeployerProperties;
 	}
 
 	/**
@@ -243,10 +244,18 @@ public abstract class AbstractLocalDeployerSupport {
 		return builder;
 	}
 
-	private LocalDeployerProperties bindDeploymentProperties(Map<String, String> properties) {
-		return new Binder(new MapConfigurationPropertySource(properties))
-				.bind(LocalDeployerProperties.PREFIX, Bindable.of(LocalDeployerProperties.class))
-				.orElseCreate(LocalDeployerProperties.class);
+	/**
+	 * This will merge the deployment properties that were passed in at runtime with the deployment properties
+	 * of the Deployer instance.
+	 * @param runtimeDeploymentProperties deployment properties passed in at runtime
+	 * @return merged deployer properties
+	 */
+	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
+		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties();
+		BeanUtils.copyProperties(this.localDeployerProperties, copyOfDefaultProperties );
+		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
+				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(copyOfDefaultProperties))
+				.orElse(copyOfDefaultProperties);
 	}
 
 	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
@@ -372,7 +381,7 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
-		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.properties.isUseSpringApplicationJson();
+		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.localDeployerProperties.isUseSpringApplicationJson();
 	}
 
 	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort, Map<String, String> appInstanceEnvVars) {
@@ -411,7 +420,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
-			int randomInt = ThreadLocalRandom.current().nextInt(properties.getPortRange().getLow(), properties.getPortRange().getHigh());
+			int randomInt = ThreadLocalRandom.current().nextInt(localDeployerProperties.getPortRange().getLow(), localDeployerProperties.getPortRange().getHigh());
 			try {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
@@ -428,7 +437,7 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (availPorts.isEmpty()) {
-			throw new IllegalStateException("Could not find an available TCP port in the range" + properties.getPortRange());
+			throw new IllegalStateException("Could not find an available TCP port in the range" + localDeployerProperties.getPortRange());
 		}
 
 		int finalPort = -1;
@@ -441,7 +450,7 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (finalPort == -1) {
-			throw new IllegalStateException("Could not find a free random port range " + properties.getPortRange());
+			throw new IllegalStateException("Could not find a free random port range " + localDeployerProperties.getPortRange());
 		}
 		logger.debug("Using Port: " + finalPort);
 		return finalPort;
