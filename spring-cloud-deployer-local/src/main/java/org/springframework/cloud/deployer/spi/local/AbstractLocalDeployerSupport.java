@@ -267,7 +267,10 @@ public abstract class AbstractLocalDeployerSupport {
 			try {
 				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
 				if (applicationPropertiesToUse.containsKey(SPRING_APPLICATION_JSON)) {
-					applicationPropertiesToUse.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON), new TypeReference<HashMap<String, Object>>() {}));
+					applicationPropertiesToUse
+							.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON),
+									new TypeReference<HashMap<String, String>>() {
+									}));
 					applicationPropertiesToUse.remove(SPRING_APPLICATION_JSON);
 				}
 			}

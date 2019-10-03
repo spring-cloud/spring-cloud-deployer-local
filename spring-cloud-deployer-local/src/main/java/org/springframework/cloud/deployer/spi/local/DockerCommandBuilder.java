@@ -104,7 +104,10 @@ public class DockerCommandBuilder implements CommandBuilder {
 			Map<String, String> properties = new HashMap<>();
 
 			try {
-				properties.putAll(OBJECT_MAPPER.readValue(appInstanceEnv.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), new TypeReference<HashMap<String,Object>>() {}));
+				properties.putAll(OBJECT_MAPPER.readValue(
+						appInstanceEnv.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON),
+						new TypeReference<HashMap<String, String>>() {
+						}));
 			}
 			catch (IOException e) {
 				throw new IllegalArgumentException("Unable to determine server port from SPRING_APPLICATION_JSON");
