@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
+import org.springframework.cloud.deployer.spi.app.AppScaleRequest;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
@@ -71,7 +71,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	private static final Logger logger = LoggerFactory.getLogger(LocalAppDeployer.class);
 	private static final String JMX_DEFAULT_DOMAIN_KEY = "spring.jmx.default-domain";
 	private static final String ENDPOINTS_SHUTDOWN_ENABLED_KEY = "endpoints.shutdown.enabled";
-	private final Map<String, List<AppInstance>> running = new ConcurrentHashMap<>();
+	private final Map<String, AppInstancesHolder> running = new ConcurrentHashMap<>();
 
 	/**
 	 * Instantiates a new local app deployer.
@@ -124,16 +124,42 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public String deploy(AppDeploymentRequest request) {
+		String group = request.getDeploymentProperties().get(GROUP_PROPERTY_KEY);
+		String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
+		validateStatus(deploymentId, DeploymentState.unknown);
+		List<AppInstance> processes = new ArrayList<>();
+		running.put(deploymentId, new AppInstancesHolder(processes, request));
+
+		try {
+			Path workDir = createWorkingDir(request.getDeploymentProperties(), deploymentId);
+
+			String countProperty = request.getDeploymentProperties().get(COUNT_PROPERTY_KEY);
+			int count = (StringUtils.hasText(countProperty)) ? Integer.parseInt(countProperty) : 1;
+
+			for (int index = 0; index < count; index++) {
+				processes.add(deployApp(request, workDir, group, deploymentId, index));
+			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException("Exception trying to deploy " + request, e);
+		}
+		return deploymentId;
+	}
+
+	@Override
+	public void scale(AppScaleRequest appScaleRequest) {
+		validateStatus(appScaleRequest.getDeploymentId(), DeploymentState.deployed);
+		AppInstancesHolder holder = running.get(appScaleRequest.getDeploymentId());
+		List<AppInstance> instances = holder != null ? holder.instances : null;
+		if (instances == null) {
+			throw new IllegalStateException(
+					"Can't find existing instances for deploymentId " + appScaleRequest.getDeploymentId());
+		}
+		AppDeploymentRequest request = holder.request;
 
 		String group = request.getDeploymentProperties().get(GROUP_PROPERTY_KEY);
 		String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
 
-		validateStatus(deploymentId);
-
-		List<AppInstance> processes = new ArrayList<>();
-		running.put(deploymentId, processes);
-
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 
 		// consolidatedAppProperties is a Map of all application properties to be used by
 		// the app being launched. These values should end up as environment variables
@@ -154,71 +180,37 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		try {
 			Path workDir = createWorkingDir(request.getDeploymentProperties(), deploymentId);
+			int deltaCount = appScaleRequest.getCount() - instances.size();
+			int targetCount = instances.size() + deltaCount;
 
-			String countProperty = request.getDeploymentProperties().get(COUNT_PROPERTY_KEY);
-			int count = (StringUtils.hasText(countProperty)) ? Integer.parseInt(countProperty) : 1;
-
-			for (int i = 0; i < count; i++) {
-
-				// This Map is the consolidated application properties *for the instance*
-				// to be deployed in this iteration
-				Map<String, String> appInstanceEnv = new HashMap<>(consolidatedAppProperties);
-
-				int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
-
-				if (useSpringApplicationJson(request)) {
-					appInstanceEnv.put("instance.index", Integer.toString(i));
-					appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(i));
-					appInstanceEnv.put("spring.application.index", Integer.toString(i));
-					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+			if (deltaCount > 0) {
+				for (int index = instances.size(); index < targetCount; index++) {
+					instances.add(deployApp(request, workDir, group, deploymentId, index));
 				}
-				else {
-					appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(i));
-					appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(i));
-					appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
-				}
-
-				// we only set 'normal' style props reflecting what we set for env format
-				// for cross reference to work inside SAJ.
-				// looks like for now we can't remove these env style formats as i.e.
-				// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
-				// this might be indication that we can't yet fully remove those.
-				if (useSpringApplicationJson(request)) {
-					appInstanceEnv.put("instance.index", Integer.toString(i));
-					appInstanceEnv.put("spring.application.index", Integer.toString(i));
-					appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
-				}
-
-				AppInstance instance = new AppInstance(deploymentId, i, port);
-
-				ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(i), deploymentId)
-						.inheritIO();
-
-				builder.directory(workDir.toFile());
-
-				if (this.shouldInheritLogging(request)) {
-					instance.start(builder, workDir);
-					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.",
-							deploymentId, i);
-				}
-				else {
-					instance.start(builder, workDir, getLocalDeployerProperties().isDeleteFilesOnExit());
-					logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId,
-							i, workDir);
-				}
-
-				processes.add(instance);
 			}
+			else if (deltaCount < 0) {
+				List<AppInstance> processes = new ArrayList<>();
+				for (int index = instances.size() - 1; index >= targetCount; index--) {
+					processes.add(instances.remove(index));
+				}
+				for (AppInstance instance : processes) {
+					if (isAlive(instance.getProcess())) {
+						logger.info("Un-deploying app with deploymentId {} instance {}.", deploymentId, instance.getInstanceNumber());
+						shutdownAndWait(instance);
+					}
+				}
+			}
+
 		}
 		catch (IOException e) {
 			throw new RuntimeException("Exception trying to deploy " + request, e);
 		}
-		return deploymentId;
 	}
 
 	@Override
 	public void undeploy(String id) {
-		List<AppInstance> processes = running.get(id);
+		AppInstancesHolder holder = running.get(id);
+		List<AppInstance> processes = holder != null ? holder.instances : null;
 		if (processes != null) {
 			for (AppInstance instance : processes) {
 				if (isAlive(instance.getProcess())) {
@@ -235,7 +227,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public AppStatus status(String id) {
-		List<AppInstance> instances = running.get(id);
+		AppInstancesHolder holder = running.get(id);
+		List<AppInstance> instances = holder != null ? holder.instances : null;
 		AppStatus.Builder builder = AppStatus.of(id);
 
 		if (instances != null) {
@@ -249,7 +242,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	@Override
 	public String getLog(String id) {
-		List<AppInstance> instances = running.get(id);
+		AppInstancesHolder holder = running.get(id);
+		List<AppInstance> instances = holder != null ? holder.instances : null;
 		StringBuilder stringBuilder = new StringBuilder();
 		if (instances != null) {
 			for (AppInstance instance : instances) {
@@ -277,6 +271,69 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
+	private AppInstance deployApp(AppDeploymentRequest request, Path workDir, String group, String deploymentId,
+			int index) throws IOException {
+		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
+
+		// consolidatedAppProperties is a Map of all application properties to be used by
+		// the app being launched. These values should end up as environment variables
+		// either explicitly or as a SPRING_APPLICATION_JSON value.
+		HashMap<String, String> consolidatedAppProperties = new HashMap<>(request.getDefinition().getProperties());
+
+		consolidatedAppProperties.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
+
+		if (!request.getDefinition().getProperties().containsKey(ENDPOINTS_SHUTDOWN_ENABLED_KEY)) {
+			consolidatedAppProperties.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
+		}
+
+		consolidatedAppProperties.put("endpoints.jmx.unique-names", "true");
+
+		if (group != null) {
+			consolidatedAppProperties.put("spring.cloud.application.group", group);
+		}
+
+		// This Map is the consolidated application properties *for the instance*
+		// to be deployed in this iteration
+		Map<String, String> appInstanceEnv = new HashMap<>(consolidatedAppProperties);
+		int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
+		if (useSpringApplicationJson(request)) {
+			appInstanceEnv.put("instance.index", Integer.toString(index));
+			appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(index));
+			appInstanceEnv.put("spring.application.index", Integer.toString(index));
+			appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+		}
+		else {
+			appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(index));
+			appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(index));
+			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+		}
+		// we only set 'normal' style props reflecting what we set for env format
+		// for cross reference to work inside SAJ.
+		// looks like for now we can't remove these env style formats as i.e.
+		// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
+		// this might be indication that we can't yet fully remove those.
+		if (useSpringApplicationJson(request)) {
+			appInstanceEnv.put("instance.index", Integer.toString(index));
+			appInstanceEnv.put("spring.application.index", Integer.toString(index));
+			appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+		}
+		AppInstance instance = new AppInstance(deploymentId, index, port);
+		ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(index), deploymentId)
+				.inheritIO();
+		builder.directory(workDir.toFile());
+		if (this.shouldInheritLogging(request)) {
+			instance.start(builder, workDir);
+			logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.",
+					deploymentId, index);
+		}
+		else {
+			instance.start(builder, workDir, getLocalDeployerProperties().isDeleteFilesOnExit());
+			logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be in {}", deploymentId,
+					index, workDir);
+		}
+		return instance;
+	}
+
 	private Path createWorkingDir(Map<String, String> deploymentProperties, String deploymentId) throws IOException {
 		LocalDeployerProperties localDeployerPropertiesToUse = bindDeploymentProperties(deploymentProperties);
 
@@ -289,12 +346,11 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		return workDir;
 	}
 
-	private void validateStatus(String deploymentId) {
+	private void validateStatus(String deploymentId, DeploymentState expectedState) {
 		DeploymentState state = status(deploymentId).getState();
-
-		Assert.state(state == DeploymentState.unknown,
-				String.format("App with deploymentId [%s] is already deployed with state [%s]",
-						deploymentId, state));
+		Assert.state(state == expectedState,
+				String.format("App with deploymentId [%s] with state [%s] doesn't match expected state [%s]",
+						deploymentId, state, expectedState));
 	}
 
 	private static class AppInstance implements Instance, AppInstanceStatus {
@@ -433,4 +489,13 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		}
 	}
 
+	private static class AppInstancesHolder {
+		final List<AppInstance> instances;
+		final AppDeploymentRequest request;
+
+		public AppInstancesHolder(List<AppInstance> instances, AppDeploymentRequest request) {
+			this.instances = instances;
+			this.request = request;
+		}
+	}
 }

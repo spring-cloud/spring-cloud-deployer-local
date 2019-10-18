@@ -23,7 +23,6 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,9 +37,7 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -191,6 +188,17 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
 		String logContent = appDeployer().getLog(deploymentId);
 		assertThat(logContent, containsString("Starting DeployerIntegrationTestApplication"));
+	}
+
+	// TODO: remove when these two are forced in tck tests
+	@Test
+	public void testScale() {
+		doTestScale(false);
+	}
+
+	@Test
+	public void testScaleWithIndex() {
+		doTestScale(true);
 	}
 
 	@Test
