@@ -15,6 +15,7 @@
  */
 package org.springframework.cloud.deployer.spi.local;
 
+import java.io.File;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +38,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
 public class JavaExecutionCommandBuilderTests {
@@ -48,11 +51,10 @@ public class JavaExecutionCommandBuilderTests {
 
     @Before
     public void setUp() {
-        commandBuilder = new JavaCommandBuilder(localDeployerProperties);
         args = new ArrayList<>();
         deploymentProperties = new HashMap<>();
         localDeployerProperties = new LocalDeployerProperties();
-
+        commandBuilder = new JavaCommandBuilder(localDeployerProperties);
     }
 
     @Test
@@ -78,6 +80,37 @@ public class JavaExecutionCommandBuilderTests {
         assertThat(args.size(), is(1));
         assertThat(args.get(0), is("-Xmx1024m"));
     }
+
+    @Test
+    public void testJavaMemoryOptionWithKebabCase() {
+        deploymentProperties.put(PREFIX + ".java-opts", "-Xmx1024m");
+        commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
+        assertThat(args.size(), is(1));
+        assertThat(args.get(0), is("-Xmx1024m"));
+    }
+
+    @Test
+    public void testJavaCmdOption() throws Exception {
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PREFIX + ".javaCmd", "/test/java");
+        Resource resource = mock(Resource.class);
+        when(resource.getFile()).thenReturn(new File("/"));
+        AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(mock(AppDefinition.class), resource, properties);
+        String[] commands = commandBuilder.buildExecutionCommand(appDeploymentRequest, Collections.EMPTY_MAP, Optional.of(1));
+        assertThat(commands[0], is("/test/java"));
+    }
+
+    @Test
+    public void testJavaCmdOptionWithKebabCase() throws Exception {
+        Map<String, String> properties = new HashMap<>();
+        properties.put(PREFIX + ".java-cmd", "/test/java");
+        Resource resource = mock(Resource.class);
+        when(resource.getFile()).thenReturn(new File("/"));
+        AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(mock(AppDefinition.class), resource, properties);
+        String[] commands = commandBuilder.buildExecutionCommand(appDeploymentRequest, Collections.EMPTY_MAP, Optional.of(1));
+        assertThat(commands[0], is("/test/java"));
+    }
+
 
     @Test
     public void testOverrideMemoryOptions() {
@@ -139,34 +172,7 @@ public class JavaExecutionCommandBuilderTests {
     }
 
     @Test
-    public void testMainExecution() {
-        String mainApp = "org.foo.Main";
-        String mainJar = "/tmp/myapp.jar";
-        AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
-        deploymentProperties.put(PREFIX + ".main", mainApp);
-        deploymentProperties.put(PREFIX + ".classpath", mainJar);
-        AppDeploymentRequest appDeploymentRequest =
-                new AppDeploymentRequest(definition, testResource(), deploymentProperties);
-        commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
-        assertThat(args.size(), is(3));
-        assertThat(args.get(0), is("-cp"));
-        assertThat(args.get(1), is(mainJar));
-        assertThat(args.get(2), is(mainApp));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testMissingMain() {
-        String mainJar = "/tmp/myapp.jar";
-        AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
-        deploymentProperties.put(PREFIX + ".classpath", mainJar);
-        AppDeploymentRequest appDeploymentRequest =
-                new AppDeploymentRequest(definition, testResource(), deploymentProperties);
-        commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
-    }
-
-    @Test
     public void testCommandBuilderSpringApplicationJson() {
-        String mainJar = "/tmp/myapp.jar";
         LocalDeployerProperties properties = new LocalDeployerProperties();
         LocalAppDeployer deployer = new LocalAppDeployer(properties);
         AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));

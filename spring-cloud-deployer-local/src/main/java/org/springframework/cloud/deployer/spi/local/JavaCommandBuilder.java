@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 the original author or authors.
+ * Copyright 2016-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,14 +26,15 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.beans.BeanUtils;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.util.ByteSizeUtils;
 import org.springframework.core.io.Resource;
-import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-
-import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
 /**
  * @author Mark Pollack
@@ -44,10 +45,6 @@ import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperti
 public class JavaCommandBuilder implements CommandBuilder {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
-
-	private static final String MAIN = "main";
-
-	private static final String CLASSPATH = "classpath";
 
 	private LocalDeployerProperties properties;
 
@@ -60,7 +57,7 @@ public class JavaCommandBuilder implements CommandBuilder {
 			Optional<Integer> appInstanceNumber) {
 		ArrayList<String> commands = new ArrayList<>();
 		Map<String, String> deploymentProperties = request.getDeploymentProperties();
-		commands.add(properties.getJavaCmd());
+		commands.add(bindDeploymentProperties(deploymentProperties).getJavaCmd());
 		// Add Java System Properties (ie -Dmy.prop=val) before main class or -jar
 		addJavaOptions(commands, deploymentProperties, properties);
 		addJavaExecutionOptions(commands, request);
@@ -77,7 +74,7 @@ public class JavaCommandBuilder implements CommandBuilder {
 					ByteSizeUtils.parseToMebibytes(deploymentProperties.get(AppDeployer.MEMORY_PROPERTY_KEY)) + "m";
 		}
 
-		String javaOptsString = getValue(deploymentProperties, "javaOpts");
+		String javaOptsString = bindDeploymentProperties(deploymentProperties).getJavaOpts();
 		if (javaOptsString == null && memory != null) {
 			commands.add(memory);
 		}
@@ -99,34 +96,28 @@ public class JavaCommandBuilder implements CommandBuilder {
 	}
 
 	protected void addJavaExecutionOptions(List<String> commands, AppDeploymentRequest request) {
-		Map<String, String> deploymentProperties = request.getDeploymentProperties();
-		if (containsKey(deploymentProperties, MAIN) || containsKey(deploymentProperties, CLASSPATH)) {
-			Assert.isTrue(containsKey(deploymentProperties, MAIN)
-							&& containsKey(deploymentProperties, CLASSPATH),
-					PREFIX + "." + MAIN + " and " + PREFIX + "." + CLASSPATH +
-							" deployment properties are both required if either is provided.");
-			commands.add("-cp");
-			commands.add(getValue(deploymentProperties, CLASSPATH));
-			commands.add(getValue(deploymentProperties, MAIN));
+		commands.add("-jar");
+		Resource resource = request.getResource();
+		try {
+			commands.add(resource.getFile().getAbsolutePath());
 		}
-		else {
-			commands.add("-jar");
-			Resource resource = request.getResource();
-			try {
-				commands.add(resource.getFile().getAbsolutePath());
-			}
-			catch (IOException e) {
-				throw new IllegalStateException(e);
-			}
+		catch (IOException e) {
+			throw new IllegalStateException(e);
 		}
 	}
 
-	private boolean containsKey(Map<String, String> deploymentProperties, String propertyName) {
-		return deploymentProperties.containsKey(PREFIX + "." + propertyName);
-	}
-
-	private String getValue(Map<String, String> deploymentProperties, String propertyName) {
-		return deploymentProperties.get(PREFIX + "." + propertyName);
+	/**
+	 * This will merge the deployment properties that were passed in at runtime with the deployment properties
+	 * of the Deployer instance.
+	 * @param runtimeDeploymentProperties deployment properties passed in at runtime
+	 * @return merged deployer properties
+	 */
+	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
+		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties();
+		BeanUtils.copyProperties(this.properties, copyOfDefaultProperties );
+		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
+				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(copyOfDefaultProperties))
+				.orElse(copyOfDefaultProperties);
 	}
 
 }
