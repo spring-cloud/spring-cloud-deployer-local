@@ -394,10 +394,6 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 
 		List<Path> afterDirs = getAfterPaths(customWorkDirRoot);
 		assertThat("Additional working directory not created", afterDirs.size(), CoreMatchers.is(beforeDirs.size()+1));
-
-		// clean up if test passed
-		FileSystemUtils.deleteRecursively(customWorkDirRoot);
-
 	}
 
 	private List<Path> getAfterPaths(Path customWorkDirRoot) throws IOException {
