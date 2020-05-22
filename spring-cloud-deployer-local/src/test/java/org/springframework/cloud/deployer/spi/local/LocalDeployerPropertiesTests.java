@@ -54,6 +54,7 @@ public class LocalDeployerPropertiesTests {
 				assertThat(properties.getPortRange().getHigh()).isEqualTo(61000);
 				assertThat(properties.getShutdownTimeout()).isEqualTo(30);
 				assertThat(properties.isUseSpringApplicationJson()).isTrue();
+				assertThat(properties.getDocker().getNetwork()).isEqualTo("bridge");
 			});
 	}
 
@@ -74,6 +75,7 @@ public class LocalDeployerPropertiesTests {
 				map.put("spring.cloud.deployer.local.port-range.high", 2346);
 				map.put("spring.cloud.deployer.local.shutdown-timeout", 3456);
 				map.put("spring.cloud.deployer.local.use-spring-application-json", false);
+				map.put("spring.cloud.deployer.local.docker.network", "spring-cloud-dataflow-server_default");
 
 				context.getEnvironment().getPropertySources().addLast(new SystemEnvironmentPropertySource(
 					StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, map));
@@ -94,6 +96,7 @@ public class LocalDeployerPropertiesTests {
 				assertThat(properties.getPortRange().getHigh()).isEqualTo(2346);
 				assertThat(properties.getShutdownTimeout()).isEqualTo(3456);
 				assertThat(properties.isUseSpringApplicationJson()).isFalse();
+				assertThat(properties.getDocker().getNetwork()).isEqualTo("spring-cloud-dataflow-server_default");
 			});
 	}
 
@@ -115,6 +118,7 @@ public class LocalDeployerPropertiesTests {
 				map.put("spring.cloud.deployer.local.portRange.high", 2346);
 				map.put("spring.cloud.deployer.local.shutdownTimeout", 3456);
 				map.put("spring.cloud.deployer.local.useSpringApplicationJson", false);
+				map.put("spring.cloud.deployer.local.docker.network", "spring-cloud-dataflow-server_default");
 
 				context.getEnvironment().getPropertySources().addLast(new SystemEnvironmentPropertySource(
 					StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, map));
@@ -135,6 +139,7 @@ public class LocalDeployerPropertiesTests {
 				assertThat(properties.getPortRange().getHigh()).isEqualTo(2346);
 				assertThat(properties.getShutdownTimeout()).isEqualTo(3456);
 				assertThat(properties.isUseSpringApplicationJson()).isFalse();
+				assertThat(properties.getDocker().getNetwork()).isEqualTo("spring-cloud-dataflow-server_default");
 			});
 	}
 

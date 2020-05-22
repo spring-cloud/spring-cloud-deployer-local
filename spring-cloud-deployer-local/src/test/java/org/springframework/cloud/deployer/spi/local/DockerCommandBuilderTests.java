@@ -39,7 +39,7 @@ import static org.junit.Assert.assertThat;
  */
 public class DockerCommandBuilderTests {
 
-	private DockerCommandBuilder commandBuilder = new DockerCommandBuilder();
+	private DockerCommandBuilder commandBuilder = new DockerCommandBuilder(null);
 
 	@Test
 	public void testContainerName() {
@@ -50,6 +50,18 @@ public class DockerCommandBuilderTests {
 		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
 
 		assertThat(command, arrayContaining("docker", "run", "--name=gogo-1", "foo/bar"));
+	}
+
+	@Test
+	public void testContainerNameWithDockerNetwork() {
+		AppDefinition appDefinition = new AppDefinition("foo", null);
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
+		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
+		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default")
+				.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
+
+		assertThat(command, arrayContaining("docker", "run", "--network", "spring-cloud-dataflow-server_default",  "--name=gogo-1", "foo/bar"));
 	}
 
 	@Test

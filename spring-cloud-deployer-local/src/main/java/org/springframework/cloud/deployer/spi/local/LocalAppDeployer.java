@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppScaleRequest;
@@ -65,6 +67,7 @@ import org.springframework.util.StringUtils;
  * @author Oleg Zhurakousky
  * @author Michael Minella
  * @author Glenn Renfro
+ * @author Christian Tzolov
  */
 public class LocalAppDeployer extends AbstractLocalDeployerSupport implements AppDeployer {
 
@@ -317,7 +320,15 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			appInstanceEnv.put("spring.application.index", Integer.toString(index));
 			appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
 		}
-		AppInstance instance = new AppInstance(deploymentId, index, port);
+
+		URL baseUrl;
+		if (request.getResource() instanceof DockerResource) {
+			baseUrl = new URL("http", deploymentId, port, "");
+		} else {
+			baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
+		}
+
+		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl);
 		ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(index), deploymentId)
 				.inheritIO();
 		builder.directory(workDir.toFile());
@@ -368,14 +379,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		private File stderr;
 		private int port;
 
-		private AppInstance(String deploymentId, int instanceNumber, int port) throws IOException {
+		private AppInstance(String deploymentId, int instanceNumber, int port, URL baseUrl) {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
 			this.port = port;
-			attributes.put("port", Integer.toString(port));
-			attributes.put("guid", Integer.toString(port));
-			this.baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
-			attributes.put("url", baseUrl.toString());
+			this.baseUrl = baseUrl;
+			this.attributes.put("port", Integer.toString(port));
+			this.attributes.put("guid", Integer.toString(port));
+			this.attributes.put("url", baseUrl.toString());
 		}
 
 		@Override

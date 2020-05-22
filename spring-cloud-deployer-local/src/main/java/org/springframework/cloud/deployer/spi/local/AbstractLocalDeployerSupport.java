@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.BeanUtils;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -60,6 +61,7 @@ import org.springframework.web.client.RestTemplate;
  * @author Vinicius Carvalho
  * @author Michael Minella
  * @author David Turanski
+ * @author Christian Tzolov
  */
 public abstract class AbstractLocalDeployerSupport {
 
@@ -102,7 +104,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Assert.notNull(localDeployerProperties, "LocalDeployerProperties must not be null");
 		this.localDeployerProperties = localDeployerProperties;
 		this.javaCommandBuilder = new JavaCommandBuilder(localDeployerProperties);
-		this.dockerCommandBuilder = new DockerCommandBuilder();
+		this.dockerCommandBuilder = new DockerCommandBuilder(localDeployerProperties.getDocker().getNetwork());
 		this.restTemplate = buildRestTemplate(localDeployerProperties);
 	}
 
@@ -131,7 +133,7 @@ public abstract class AbstractLocalDeployerSupport {
 	protected String buildRemoteDebugInstruction(LocalDeployerProperties deployerProperties, String deploymentId,
 			int instanceIndex, int port) {
 		String ds = "y";
-		if(StringUtils.hasText(deployerProperties.getDebugSuspend())) {
+		if (StringUtils.hasText(deployerProperties.getDebugSuspend())) {
 			ds = deployerProperties.getDebugSuspend();
 		}
 		StringBuilder debugCommandBuilder = new StringBuilder();
@@ -201,6 +203,7 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		if (request.getResource() instanceof DockerResource) {
+			appPropertiesToUse.put("deployerId", deploymentId);
 			commands = this.dockerCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
 		}
 		else {
@@ -252,7 +255,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 */
 	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
 		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties();
-		BeanUtils.copyProperties(this.localDeployerProperties, copyOfDefaultProperties );
+		BeanUtils.copyProperties(this.localDeployerProperties, copyOfDefaultProperties);
 		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
 				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(copyOfDefaultProperties))
 				.orElse(copyOfDefaultProperties);
