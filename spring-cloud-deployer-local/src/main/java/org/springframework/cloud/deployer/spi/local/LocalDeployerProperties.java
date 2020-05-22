@@ -170,6 +170,16 @@ public class LocalDeployerProperties {
 
 	private boolean inheritLogging;
 
+	private String dockerNetwork = "bridge";
+
+	public String getDockerNetwork() {
+		return dockerNetwork;
+	}
+
+	public void setDockerNetwork(String dockerNetwork) {
+		this.dockerNetwork = dockerNetwork;
+	}
+
 	public Integer getDebugPort() {
 		return debugPort;
 	}
