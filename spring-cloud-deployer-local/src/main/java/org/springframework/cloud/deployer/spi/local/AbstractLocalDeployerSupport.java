@@ -104,7 +104,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Assert.notNull(localDeployerProperties, "LocalDeployerProperties must not be null");
 		this.localDeployerProperties = localDeployerProperties;
 		this.javaCommandBuilder = new JavaCommandBuilder(localDeployerProperties);
-		this.dockerCommandBuilder = new DockerCommandBuilder(localDeployerProperties.getDockerNetwork());
+		this.dockerCommandBuilder = new DockerCommandBuilder(localDeployerProperties.getDocker().getNetwork());
 		this.restTemplate = buildRestTemplate(localDeployerProperties);
 	}
 
@@ -133,7 +133,7 @@ public abstract class AbstractLocalDeployerSupport {
 	protected String buildRemoteDebugInstruction(LocalDeployerProperties deployerProperties, String deploymentId,
 			int instanceIndex, int port) {
 		String ds = "y";
-		if(StringUtils.hasText(deployerProperties.getDebugSuspend())) {
+		if (StringUtils.hasText(deployerProperties.getDebugSuspend())) {
 			ds = deployerProperties.getDebugSuspend();
 		}
 		StringBuilder debugCommandBuilder = new StringBuilder();
@@ -255,7 +255,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 */
 	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
 		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties();
-		BeanUtils.copyProperties(this.localDeployerProperties, copyOfDefaultProperties );
+		BeanUtils.copyProperties(this.localDeployerProperties, copyOfDefaultProperties);
 		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
 				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(copyOfDefaultProperties))
 				.orElse(copyOfDefaultProperties);
