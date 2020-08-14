@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 the original author or authors.
+ * Copyright 2019-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,7 @@
  */
 package org.springframework.cloud.deployer.spi.local;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +27,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class LocalDeployerPropertiesTests {
 
@@ -179,6 +180,32 @@ public class LocalDeployerPropertiesTests {
 				assertThat(properties.getWorkingDirectoriesRoot()).isNotNull();
 				assertThat(properties.getWorkingDirectoriesRoot().toString()).isEqualTo("/tmp");
 			});
+	}
+
+	@Test
+	@EnabledOnOs(OS.LINUX)
+	public void testCopyProperties() {
+		LocalDeployerProperties from = new LocalDeployerProperties();
+		LocalDeployerProperties to = new LocalDeployerProperties(from);
+		assertThat(from).isEqualTo(to);
+
+		from = new LocalDeployerProperties();
+		from.setDebugPort(1234);
+		from.setDebugSuspend("debugSuspend");
+		from.getDocker().setNetwork("network");
+		from.setDeleteFilesOnExit(true);
+		from.setEnvVarsToInherit(new String[]{"foobar"});
+		from.setInheritLogging(false);
+		from.setJavaCmd("javaCmd");
+		from.setJavaOpts("javaOpts");
+		from.setMaximumConcurrentTasks(234);
+		from.getPortRange().setHigh(2345);
+		from.getPortRange().setLow(2344);
+		from.setShutdownTimeout(345);
+		from.setUseSpringApplicationJson(false);
+		from.setWorkingDirectoriesRoot(Paths.get("/first"));
+		to = new LocalDeployerProperties(from);
+		assertThat(from).isEqualTo(to);
 	}
 
 	@EnableConfigurationProperties({ LocalDeployerProperties.class })

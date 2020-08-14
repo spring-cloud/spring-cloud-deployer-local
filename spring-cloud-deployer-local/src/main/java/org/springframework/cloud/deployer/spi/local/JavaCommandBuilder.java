@@ -26,7 +26,6 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.beans.BeanUtils;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
@@ -113,8 +112,7 @@ public class JavaCommandBuilder implements CommandBuilder {
 	 * @return merged deployer properties
 	 */
 	protected LocalDeployerProperties bindDeploymentProperties(Map<String, String> runtimeDeploymentProperties) {
-		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties();
-		BeanUtils.copyProperties(this.properties, copyOfDefaultProperties );
+		LocalDeployerProperties copyOfDefaultProperties = new LocalDeployerProperties(this.properties);
 		return new Binder(new MapConfigurationPropertySource(runtimeDeploymentProperties))
 				.bind(LocalDeployerProperties.PREFIX, Bindable.ofInstance(copyOfDefaultProperties))
 				.orElse(copyOfDefaultProperties);
