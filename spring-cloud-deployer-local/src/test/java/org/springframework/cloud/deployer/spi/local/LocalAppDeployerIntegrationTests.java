@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 the original author or authors.
+ * Copyright 2016-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,6 +47,7 @@ import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
+import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalAppDeployerIntegrationTests.Config;
@@ -55,9 +57,9 @@ import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
-import org.springframework.util.FileSystemUtils;
 import org.springframework.web.client.RestTemplate;
 
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -394,6 +396,116 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 
 		List<Path> afterDirs = getAfterPaths(customWorkDirRoot);
 		assertThat("Additional working directory not created", afterDirs.size(), CoreMatchers.is(beforeDirs.size()+1));
+	}
+
+	@Test
+	public void testStartupProbeFail() {
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".startup-probe.path", "/fake");
+
+		AppDefinition definition = new AppDefinition(randomName(), null);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+
+		await().atMost(Duration.ofSeconds(30)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deploying;
+		});
+		await().during(Duration.ofSeconds(10)).atMost(Duration.ofSeconds(12)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deploying;
+		});
+
+		log.info("Undeploying {}...", deploymentId);
+
+		Timeout timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+	}
+
+	@Test
+	public void testStartupProbeSucceed() {
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".startup-probe.path", "/actuator/info");
+
+		AppDefinition definition = new AppDefinition(randomName(), null);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+
+		await().atMost(Duration.ofSeconds(30)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deploying;
+		});
+		await().atMost(Duration.ofSeconds(12)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deployed;
+		});
+
+		log.info("Undeploying {}...", deploymentId);
+
+		Timeout timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+	}
+
+	@Test
+	public void testHealthProbeFail() {
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".health-probe.path", "/fake");
+
+		AppDefinition definition = new AppDefinition(randomName(), null);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+
+		await().during(Duration.ofSeconds(10)).atMost(Duration.ofSeconds(12)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.failed;
+		});
+
+		log.info("Undeploying {}...", deploymentId);
+
+		Timeout timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+	}
+
+	@Test
+	public void testHealthProbeSucceed() {
+		Map<String, String> deploymentProperties = new HashMap<>();
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".health-probe.path", "/actuator/info");
+
+		AppDefinition definition = new AppDefinition(randomName(), null);
+		Resource resource = testApplication();
+		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
+
+		log.info("Deploying {}...", request.getDefinition().getName());
+
+		String deploymentId = appDeployer().deploy(request);
+
+		await().atMost(Duration.ofSeconds(30)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deployed;
+		});
+
+		await().during(Duration.ofSeconds(10)).atMost(Duration.ofSeconds(15)).until(() -> {
+			return appDeployer().status(deploymentId).getState() == DeploymentState.deployed;
+		});
+
+		log.info("Undeploying {}...", deploymentId);
+
+		Timeout timeout = undeploymentTimeout();
+		appDeployer().undeploy(deploymentId);
+		assertThat(deploymentId, eventually(hasStatusThat(
+				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
 	}
 
 	private List<Path> getAfterPaths(Path customWorkDirRoot) throws IOException {
