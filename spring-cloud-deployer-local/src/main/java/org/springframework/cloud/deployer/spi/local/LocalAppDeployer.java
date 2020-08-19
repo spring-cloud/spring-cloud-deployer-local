@@ -49,6 +49,7 @@ import org.springframework.cloud.deployer.spi.app.AppStatus;
 import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.core.RuntimeEnvironmentInfo;
+import org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.HttpProbe;
 import org.springframework.util.Assert;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.util.StringUtils;
@@ -140,7 +141,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			int count = (StringUtils.hasText(countProperty)) ? Integer.parseInt(countProperty) : 1;
 
 			for (int index = 0; index < count; index++) {
-				processes.add(deployApp(request, workDir, group, deploymentId, index));
+				processes.add(deployApp(request, workDir, group, deploymentId, index, request.getDeploymentProperties()));
 			}
 		}
 		catch (IOException e) {
@@ -188,7 +189,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 			if (deltaCount > 0) {
 				for (int index = instances.size(); index < targetCount; index++) {
-					instances.add(deployApp(request, workDir, group, deploymentId, index));
+					instances.add(deployApp(request, workDir, group, deploymentId, index, request.getDeploymentProperties()));
 				}
 			}
 			else if (deltaCount < 0) {
@@ -275,7 +276,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	}
 
 	private AppInstance deployApp(AppDeploymentRequest request, Path workDir, String group, String deploymentId,
-			int index) throws IOException {
+			int index, Map<String, String> deploymentProperties) throws IOException {
+		LocalDeployerProperties localDeployerPropertiesToUse = bindDeploymentProperties(deploymentProperties);
 		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 
 		// consolidatedAppProperties is a Map of all application properties to be used by
@@ -328,7 +330,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 		}
 
-		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl);
+		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl,
+				localDeployerPropertiesToUse.getStartupProbe(), localDeployerPropertiesToUse.getHealthProbe());
 		ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(index), deploymentId)
 				.inheritIO();
 		builder.directory(workDir.toFile());
@@ -378,8 +381,12 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		private File stdout;
 		private File stderr;
 		private int port;
+		private HttpProbeExecutor startupProbeExecutor;
+		private HttpProbeExecutor healthProbeExecutor;
+		private boolean startupProbeOk;
 
-		private AppInstance(String deploymentId, int instanceNumber, int port, URL baseUrl) {
+		private AppInstance(String deploymentId, int instanceNumber, int port, URL baseUrl, HttpProbe startupProbe,
+				HttpProbe healthProbe) {
 			this.deploymentId = deploymentId;
 			this.instanceNumber = instanceNumber;
 			this.port = port;
@@ -387,6 +394,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			this.attributes.put("port", Integer.toString(port));
 			this.attributes.put("guid", Integer.toString(port));
 			this.attributes.put("url", baseUrl.toString());
+			this.startupProbeExecutor = HttpProbeExecutor.from(baseUrl, startupProbe);
+			this.healthProbeExecutor = HttpProbeExecutor.from(baseUrl, healthProbe);
 		}
 
 		@Override
@@ -421,6 +430,21 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				// chosen by OS. In this case we simply return deployed if process is up.
 				// Also we can't even try http check as we would not know port to connect to.
 				return DeploymentState.deployed;
+			}
+			// do startup probe first and only until we're deployed
+			if (startupProbeExecutor != null && !startupProbeOk) {
+				boolean ok = startupProbeExecutor.probe();
+				if (ok) {
+					startupProbeOk = true;
+					return DeploymentState.deployed;
+				}
+				else {
+					return DeploymentState.deploying;
+				}
+			}
+			// now deployed, checking health probe
+			if (healthProbeExecutor != null) {
+				return healthProbeExecutor.probe() ? DeploymentState.deployed : DeploymentState.failed;
 			}
 			try {
 				HttpURLConnection urlConnection = (HttpURLConnection) baseUrl.openConnection();

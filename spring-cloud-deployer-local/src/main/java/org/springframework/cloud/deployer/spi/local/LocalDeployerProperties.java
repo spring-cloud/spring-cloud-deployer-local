@@ -372,6 +372,39 @@ public class LocalDeployerProperties {
 		this.maximumConcurrentTasks = maximumConcurrentTasks;
 	}
 
+	private HttpProbe startupProbe = new HttpProbe();
+	private HttpProbe healthProbe = new HttpProbe();
+
+	public HttpProbe getStartupProbe() {
+		return startupProbe;
+	}
+
+	public void setStartupProbe(HttpProbe startupProbe) {
+		this.startupProbe = startupProbe;
+	}
+
+	public HttpProbe getHealthProbe() {
+		return healthProbe;
+	}
+
+	public void setHealthProbe(HttpProbe healthProbe) {
+		this.healthProbe = healthProbe;
+	}
+
+	public static class HttpProbe {
+
+		/** Path to check as a probe */
+		private String path;
+
+		public String getPath() {
+			return path;
+		}
+
+		public void setPath(String path) {
+			this.path = path;
+		}
+	}
+
 	private String deduceJavaCommand() {
 		String javaExecutablePath = JAVA_COMMAND;
 		String javaHome = System.getProperty("java.home");
