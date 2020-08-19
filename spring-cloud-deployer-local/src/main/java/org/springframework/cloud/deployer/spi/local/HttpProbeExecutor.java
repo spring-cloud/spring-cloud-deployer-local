@@ -27,6 +27,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 
+/**
+ * Simple probe executor using rest endpoints.
+ *
+ * @author Janne Valkealahti
+ *
+ */
 public class HttpProbeExecutor {
 
 	private static final Logger logger = LoggerFactory.getLogger(HttpProbeExecutor.class);
