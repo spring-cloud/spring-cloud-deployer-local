@@ -22,8 +22,6 @@
 
 	<modules>
 		<module>spring-cloud-deployer-local</module>
-		<module>spring-cloud-deployer-sample-stream</module>
-		<module>spring-cloud-deployer-sample-task</module>
 	</modules>
 
 	<dependencyManagement>
