@@ -253,10 +253,13 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			for (AppInstance instance : instances) {
 				String stderr = instance.getStdErr();
 				if (StringUtils.hasText(stderr)) {
+					stringBuilder.append("stderr:\n");
 					stringBuilder.append(stderr);
 				}
-				else {
-					stringBuilder.append(instance.getStdOut());
+				String stdout = instance.getStdOut();
+				if (StringUtils.hasText(stdout)) {
+					stringBuilder.append("stdout:\n");
+					stringBuilder.append(stdout);
 				}
 			}
 		}

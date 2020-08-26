@@ -179,8 +179,18 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 	public String getLog(String id) {
 		TaskInstance instance = running.get(id);
 		if (instance != null) {
+			StringBuilder stringBuilder = new StringBuilder();
 			String stderr = instance.getStdErr();
-			return (StringUtils.hasText(stderr)) ? stderr : instance.getStdOut();
+			if (StringUtils.hasText(stderr)) {
+				stringBuilder.append("stderr:\n");
+				stringBuilder.append(stderr);
+			}
+			String stdout = instance.getStdOut();
+			if (StringUtils.hasText(stdout)) {
+				stringBuilder.append("stdout:\n");
+				stringBuilder.append(stdout);
+			}
+			return stringBuilder.toString();
 		}
 		else {
 			return "Log could not be retrieved as the task instance is not running.";
