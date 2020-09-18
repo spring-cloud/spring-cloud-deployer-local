@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 the original author or authors.
+ * Copyright 2017-2020 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,11 @@ import static org.junit.Assert.assertThat;
  * Unit tests for {@link DockerCommandBuilder}.
  *
  * @author Eric Bottard
+ * @author Christian Tzolov
  */
 public class DockerCommandBuilderTests {
 
-	private DockerCommandBuilder commandBuilder = new DockerCommandBuilder(null);
+	private DockerCommandBuilder commandBuilder = new DockerCommandBuilder(null, true);
 
 	@Test
 	public void testContainerName() {
@@ -49,7 +50,7 @@ public class DockerCommandBuilderTests {
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
 		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
 
-		assertThat(command, arrayContaining("docker", "run", "--name=gogo-1", "foo/bar"));
+		assertThat(command, arrayContaining("docker", "run", "--rm", "--name=gogo-1", "foo/bar"));
 	}
 
 	@Test
@@ -58,7 +59,19 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default")
+		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default", true)
+				.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
+
+		assertThat(command, arrayContaining("docker", "run", "--network", "spring-cloud-dataflow-server_default",  "--rm", "--name=gogo-1", "foo/bar"));
+	}
+
+	@Test
+	public void testContainerNameWithDockerNetworkAndKeepContainers() {
+		AppDefinition appDefinition = new AppDefinition("foo", null);
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
+		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
+		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default", false)
 				.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
 
 		assertThat(command, arrayContaining("docker", "run", "--network", "spring-cloud-dataflow-server_default",  "--name=gogo-1", "foo/bar"));

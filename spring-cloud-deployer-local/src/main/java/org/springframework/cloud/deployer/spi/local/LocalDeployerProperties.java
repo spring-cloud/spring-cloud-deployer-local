@@ -231,12 +231,22 @@ public class LocalDeployerProperties {
 	public static class Docker {
 		private String network = "bridge";
 
+		private boolean deleteContainerOnExit = true;
+
 		public String getNetwork() {
 			return network;
 		}
 
 		public void setNetwork(String network) {
 			this.network = network;
+		}
+
+		public boolean isDeleteContainerOnExit() {
+			return deleteContainerOnExit;
+		}
+
+		public void setDeleteContainerOnExit(boolean deleteContainerOnExit) {
+			this.deleteContainerOnExit = deleteContainerOnExit;
 		}
 
 		@Override
