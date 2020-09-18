@@ -52,10 +52,12 @@ public class DockerCommandBuilder implements CommandBuilder {
 	public static final String DOCKER_CONTAINER_NAME_KEY = AppDeployer.PREFIX + "docker.container.name";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
-	private String dockerNetwork;
+	private final String dockerNetwork;
+	private final boolean deleteContainerOnExit;
 
-	public DockerCommandBuilder(String dockerNetwork) {
+	public DockerCommandBuilder(String dockerNetwork, boolean deleteContainerOnExit) {
 		this.dockerNetwork = dockerNetwork;
+		this.deleteContainerOnExit = deleteContainerOnExit;
 	}
 
 	@Override
@@ -76,6 +78,9 @@ public class DockerCommandBuilder implements CommandBuilder {
 			commands.add("--network");
 			commands.add(this.dockerNetwork);
 		}
+		if (this.deleteContainerOnExit) {
+			commands.add("--rm");
+		}
 
 		// Add env vars
 		for (String env : appInstanceEnv.keySet()) {
@@ -91,6 +96,10 @@ public class DockerCommandBuilder implements CommandBuilder {
 			} else {
 				commands.add(String.format("--name=%s", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY)));
 			}
+		} else {
+			String group = request.getDeploymentProperties().get(AppDeployer.GROUP_PROPERTY_KEY);
+			String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
+			commands.add(String.format("--name=%s", deploymentId));
 		}
 
 		DockerResource dockerResource = (DockerResource) request.getResource();
