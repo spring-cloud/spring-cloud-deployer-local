@@ -328,7 +328,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		URL baseUrl;
 		if (request.getResource() instanceof DockerResource) {
-			baseUrl = new URL("http", deploymentId, port, "");
+			baseUrl = new URL("http", String.format("%s-%d", deploymentId, index), port, "");
 		} else {
 			baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
 		}

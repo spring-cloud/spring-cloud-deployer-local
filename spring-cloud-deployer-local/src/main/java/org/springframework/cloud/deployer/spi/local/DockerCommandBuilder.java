@@ -98,8 +98,11 @@ public class DockerCommandBuilder implements CommandBuilder {
 			}
 		} else {
 			String group = request.getDeploymentProperties().get(AppDeployer.GROUP_PROPERTY_KEY);
-			String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
-			commands.add(String.format("--name=%s", deploymentId));
+			if (StringUtils.hasText(group)) {
+				String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
+				int index = appInstanceNumber.orElse(0);
+				commands.add(String.format("--name=%s-%d", deploymentId, index));
+			}
 		}
 
 		DockerResource dockerResource = (DockerResource) request.getResource();
