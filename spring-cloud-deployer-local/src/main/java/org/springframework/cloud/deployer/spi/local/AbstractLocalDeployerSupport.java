@@ -495,7 +495,6 @@ public abstract class AbstractLocalDeployerSupport {
 
 		//Earlier java versions 1.8 and below use '1.x'. Later vesions use 'X'
 		int versionAsOrdinal() {
-			System.out.println("Java specification version = " + versionAsString);
 			if (versionAsString.startsWith("1.")) {
 				String[] tokens = versionAsString.split("\\.");
 				if (tokens.length < 2) {
