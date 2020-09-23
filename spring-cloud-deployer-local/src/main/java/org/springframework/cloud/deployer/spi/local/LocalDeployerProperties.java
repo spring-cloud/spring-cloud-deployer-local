@@ -66,6 +66,13 @@ public class LocalDeployerProperties {
 	public static final String DEBUG_PORT = PREFIX + ".debug-port";
 
 	/**
+	 * Remote debugging property allowing one to specify host for the remote debug
+	 * session on Java versions greater than 1.8. Default is <em>*</em>. May be set for individual applications (<em>i.e.</em>
+	 * {@literal deployer.<app-name>.local.debugHost=127.0.0.1}).
+	 */
+	public static final String DEBUG_HOST = PREFIX + ".debug-host";
+
+	/**
 	 * Remote debugging property allowing one to specify if the startup of the
 	 * application should be suspended until remote debug session is established.
 	 * Values must be either 'y' or 'n'. Must be set per individual application
@@ -134,6 +141,7 @@ public class LocalDeployerProperties {
 
 	public LocalDeployerProperties(LocalDeployerProperties from) {
 		this.debugPort = from.getDebugPort();
+		this.debugHost = from.getDebugHost();
 		this.debugSuspend = from.getDebugSuspend();
 		this.deleteFilesOnExit = from.isDeleteFilesOnExit();
 		this.docker.network = from.getDocker().getNetwork();
@@ -221,6 +229,8 @@ public class LocalDeployerProperties {
 	private int maximumConcurrentTasks = 20;
 
 	private Integer debugPort;
+	
+	private String debugHost="*";
 
 	private String debugSuspend;
 
@@ -299,6 +309,14 @@ public class LocalDeployerProperties {
 
 	public void setDebugPort(Integer debugPort) {
 		this.debugPort = debugPort;
+	}
+
+	public String getDebugHost() {
+		return debugHost;
+	}
+
+	public void setDebugHost(String debugHost) {
+		this.debugHost = debugHost;
 	}
 
 	public boolean isInheritLogging() {
@@ -477,6 +495,9 @@ public class LocalDeployerProperties {
 			}
 		}
 		else if (!debugPort.equals(other.debugPort)) {
+			return false;
+		}
+		if (!debugHost.equals(other.debugHost)) {
 			return false;
 		}
 		if (debugSuspend == null) {
