@@ -15,33 +15,60 @@
  */
 package org.springframework.cloud.deployer.spi.local;
 
-import org.hamcrest.Matchers;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.Assert.assertThat;
+import org.springframework.cloud.deployer.resource.docker.DockerResource;
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.core.io.ClassPathResource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 /**
  * @author Christian Tzolov
  */
+@ExtendWith(MockitoExtension.class)
 public class RandomPortRangeTests {
 
 	private AbstractLocalDeployerSupport localDeployerSupport;
 
-	@Before
+	@Mock
+	AppDeploymentRequest appDeploymentRequest;
+
+	@BeforeEach
 	public void setUp() {
 		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.getPortRange().setLow(30001);
 		properties.getPortRange().setHigh(30213);
+
+		properties.getDocker().getPortRange().setLow(40001);
+		properties.getDocker().getPortRange().setHigh(40213);
+
 		localDeployerSupport = new AbstractLocalDeployerSupport(properties) {};
+
 	}
 
 	@Test
 	public void portTests() {
+		when(appDeploymentRequest.getResource()).thenReturn(new ClassPathResource(""));
 		for (int i = 0; i < 30; i++) {
-			int port = localDeployerSupport.getRandomPort();
-			assertThat(port, Matchers.greaterThanOrEqualTo(30001));
-			assertThat(port, Matchers.lessThanOrEqualTo(30213 + 5));
+			int port = localDeployerSupport.getRandomPort(appDeploymentRequest);
+			assertThat(port).isGreaterThanOrEqualTo(30001);
+			assertThat(port).isLessThanOrEqualTo(30213 + 5);
+		}
+	}
+
+	@Test
+	public void portTests2() {
+		when(appDeploymentRequest.getResource()).thenReturn(new DockerResource("/test:test"));
+		for (int i = 0; i < 5; i++) {
+			int port = localDeployerSupport.getRandomPort(appDeploymentRequest);
+			assertThat(port).isGreaterThanOrEqualTo(40001);
+			assertThat(port).isLessThanOrEqualTo(40213 + 5);
 		}
 	}
 }

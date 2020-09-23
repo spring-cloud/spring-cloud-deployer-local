@@ -45,12 +45,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.SocketUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Base class for local app deployer and task launcher providing support for
- * common functionality.
+ * Base class for local app deployer and task launcher providing support for common
+ * functionality.
  *
  * @author Janne Valkealahti
  * @author Mark Fisher
@@ -109,12 +108,11 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Builds a {@link RestTemplate} used for calling app's shutdown endpoint. If
-	 * needed can be overridden from an implementing class. This default
-	 * implementation sets connection and read timeouts for
-	 * {@link SimpleClientHttpRequestFactory} and configures {@link RestTemplate} to
-	 * use that factory. If shutdown timeout in properties negative, returns default
-	 * {@link RestTemplate} which doesn't use timeouts.
+	 * Builds a {@link RestTemplate} used for calling app's shutdown endpoint. If needed can
+	 * be overridden from an implementing class. This default implementation sets connection
+	 * and read timeouts for {@link SimpleClientHttpRequestFactory} and configures
+	 * {@link RestTemplate} to use that factory. If shutdown timeout in properties negative,
+	 * returns default {@link RestTemplate} which doesn't use timeouts.
 	 *
 	 * @param properties the local deployer properties
 	 * @return the rest template
@@ -128,33 +126,6 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 		// fall back to plain default constructor
 		return new RestTemplate();
-	}
-
-	protected String buildRemoteDebugInstruction(LocalDeployerProperties deployerProperties, String deploymentId,
-			int instanceIndex, int port) {
-		String ds = "y";
-		if (StringUtils.hasText(deployerProperties.getDebugSuspend())) {
-			ds = deployerProperties.getDebugSuspend();
-		}
-		StringBuilder debugCommandBuilder = new StringBuilder();
-
-		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
-				deploymentId, instanceIndex, port);
-
-		debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
-		debugCommandBuilder.append(ds.trim());
-		debugCommandBuilder.append(",address=");
-		debugCommandBuilder.append(port);
-
-		String debugCommand = debugCommandBuilder.toString();
-		logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
-
-		if (ds.equals("y")) {
-			logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote "
-					+ "debugging session is established.");
-		}
-
-		return debugCommand;
 	}
 
 	/**
@@ -181,65 +152,31 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Builds the process builder. Application properties are expected to be
-	 * calculated prior to this method. No additional consolidation of application
-	 * properties is done while creating the {@code ProcessBuilder}.
+	 * Builds the process builder. Application properties are expected to be calculated prior
+	 * to this method. No additional consolidation of application properties is done while
+	 * creating the {@code ProcessBuilder}.
 	 *
-	 * @param request        the request
+	 * @param request the request
 	 * @param appInstanceEnv the instance environment variables
 	 * @return the process builder
 	 */
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
 			Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
-		String[] commands;
 
 		Map<String, String> appPropertiesToUse = formatApplicationProperties(request, appInstanceEnv);
 		if (logger.isInfoEnabled()) {
-			logger.info(
-					"Preparing to run an application from {}. "
-							+ "This may take some time if the artifact must be downloaded from a remote host.",
-					request.getResource());
+			logger.info("Preparing to run an application from {}. This may take some time if the artifact must be " +
+					"downloaded from a remote host.", request.getResource());
 		}
 
-		if (request.getResource() instanceof DockerResource) {
-			appPropertiesToUse.put("deployerId", deploymentId);
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
-		}
-		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
-		}
+		LocalDeployerProperties localDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
 
-		// tweak escaping double quotes needed for windows
-		if (LocalDeployerUtils.isWindows()) {
-			for (int i = 0; i < commands.length; i++) {
-				commands[i] = commands[i].replace("\"", "\\\"");
-			}
-		}
+		Optional<DebugAddress> debugAddressOption = DebugAddress.from(localDeployerProperties, appInstanceNumber.orElse(0));
 
-		ProcessBuilder builder = new ProcessBuilder(commands);
-
-		if (!(request.getResource() instanceof DockerResource)) {
-			builder.environment().putAll(appPropertiesToUse);
-		}
-
-		LocalDeployerProperties bindDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
-
-		if (this.containsValidDebugPort(bindDeployerProperties, deploymentId)) {
-
-			int portToUse = calculateDebugPort(bindDeployerProperties, appInstanceNumber.orElse(0));
-
-			String debugInstruction = this.buildRemoteDebugInstruction(bindDeployerProperties, deploymentId,
-					appInstanceNumber.orElse(0), portToUse);
-
-			if (request.getResource() instanceof DockerResource) {
-				builder.command().add(2, "-e");
-				builder.command().add(3, "JAVA_TOOL_OPTIONS=" + debugInstruction);
-			}
-			else {
-				builder.command().add(1, debugInstruction);
-			}
-		}
+		ProcessBuilder builder = getCommandBuilder(request)
+				.buildExecutionCommand(request, appPropertiesToUse, deploymentId, appInstanceNumber,
+						localDeployerProperties, debugAddressOption);
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
 		logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
@@ -248,8 +185,31 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * This will merge the deployment properties that were passed in at runtime with the deployment properties
-	 * of the Deployer instance.
+	 * Detects the Command builder by the type of the resource in the requests.
+	 * @param request deployment request containing information about the resource to be deployed.
+	 * @return Returns a command builder compatible with the type of the resource set in the request.
+	 */
+	protected CommandBuilder getCommandBuilder(AppDeploymentRequest request) {
+		return (request.getResource() instanceof DockerResource) ? this.dockerCommandBuilder : this.javaCommandBuilder;
+	}
+
+	/**
+	 * tweak escaping double quotes needed for windows
+	 * @param commands
+	 * @return
+	 */
+	public static String[] windowsSupport(String[] commands) {
+		if (LocalDeployerUtils.isWindows()) {
+			for (int i = 0; i < commands.length; i++) {
+				commands[i] = commands[i].replace("\"", "\\\"");
+			}
+		}
+		return commands;
+	}
+
+	/**
+	 * This will merge the deployment properties that were passed in at runtime with the
+	 * deployment properties of the Deployer instance.
 	 * @param runtimeDeploymentProperties deployment properties passed in at runtime
 	 * @return merged deployer properties
 	 */
@@ -262,12 +222,11 @@ public abstract class AbstractLocalDeployerSupport {
 
 	protected Map<String, String> formatApplicationProperties(AppDeploymentRequest request,
 			Map<String, String> appInstanceEnvToUse) {
-		Map<String, String> applicationPropertiesToUse =
-				new HashMap<>(appInstanceEnvToUse);
+		Map<String, String> applicationPropertiesToUse = new HashMap<>(appInstanceEnvToUse);
 
 		if (useSpringApplicationJson(request)) {
 			try {
-				//If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
+				// If SPRING_APPLICATION_JSON is found, explode it and merge back into appProperties
 				if (applicationPropertiesToUse.containsKey(SPRING_APPLICATION_JSON)) {
 					applicationPropertiesToUse
 							.putAll(OBJECT_MAPPER.readValue(applicationPropertiesToUse.get(SPRING_APPLICATION_JSON),
@@ -277,7 +236,8 @@ public abstract class AbstractLocalDeployerSupport {
 				}
 			}
 			catch (IOException e) {
-				throw new IllegalArgumentException("Unable to read existing SPRING_APPLICATION_JSON to merge properties", e);
+				throw new IllegalArgumentException(
+						"Unable to read existing SPRING_APPLICATION_JSON to merge properties", e);
 			}
 
 			try {
@@ -288,7 +248,8 @@ public abstract class AbstractLocalDeployerSupport {
 				applicationPropertiesToUse.put(SPRING_APPLICATION_JSON, saj);
 			}
 			catch (JsonProcessingException e) {
-				throw new IllegalArgumentException("Unable to create SPRING_APPLICATION_JSON from application properties", e);
+				throw new IllegalArgumentException(
+						"Unable to create SPRING_APPLICATION_JSON from application properties", e);
 			}
 		}
 
@@ -296,12 +257,12 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	/**
-	 * Shut down the {@link Process} backing the application {@link Instance}.
-	 * If the application exposes a {@code /shutdown} endpoint, that will be
-	 * invoked followed by a wait that will not exceed the number of seconds
-	 * indicated by {@link LocalDeployerProperties#shutdownTimeout}. If the
-	 * timeout period is exceeded (or if the {@code /shutdown} endpoint is not exposed),
-	 * the process will be shut down via {@link Process#destroy()}.
+	 * Shut down the {@link Process} backing the application {@link Instance}. If the
+	 * application exposes a {@code /shutdown} endpoint, that will be invoked followed by a
+	 * wait that will not exceed the number of seconds indicated by
+	 * {@link LocalDeployerProperties#getShutdownTimeout()} . If the timeout period is exceeded (or
+	 * if the {@code /shutdown} endpoint is not exposed), the process will be shut down via
+	 * {@link Process#destroy()}.
 	 *
 	 * @param instance the application instance to shut down
 	 */
@@ -312,7 +273,8 @@ public abstract class AbstractLocalDeployerSupport {
 				logger.debug("About to call shutdown endpoint for the instance {}", instance);
 				ResponseEntity<String> response = restTemplate.postForEntity(
 						instance.getBaseUrl() + "/shutdown", null, String.class);
-				logger.debug("Response for shutdown endpoint completed for the instance {} with response {}", instance, response);
+				logger.debug("Response for shutdown endpoint completed for the instance {} with response {}", instance,
+						response);
 				if (response.getStatusCode().is2xxSuccessful()) {
 					long timeoutTimestamp = System.currentTimeMillis() + (timeout * 1000);
 					while (isAlive(instance.getProcess()) && System.currentTimeMillis() < timeoutTimestamp) {
@@ -351,51 +313,27 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 	}
 
-	/**
-	 * Determines if there is a valid debug port specified in the deployment
-	 * properites.
-	 *
-	 * @param deployerProperties the deployment properties to validate
-	 * @param deploymentId       the deployment Id for logging purposes
-	 * @return true if there is a valid debug port, false otherwise
-	 */
-	protected boolean containsValidDebugPort(LocalDeployerProperties deployerProperties, String deploymentId) {
-		boolean validDebugPort = false;
-		if (deployerProperties.getDebugPort() != null) {
-			if (deployerProperties.getDebugPort() <= 0) {
-				logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
-				return false;
-			}
-			validDebugPort = true;
-		}
-		return validDebugPort;
-	}
-
-	/**
-	 * Gets the base debug port value and adds the instance count. Assumes
-	 * {@link #containsValidDebugPort(LocalDeployerProperties, String)} has been
-	 * called before to validate the deployment properties.
-	 *
-	 * @param deployerProperties deployment properties with a valid value of debug
-	 *                           port
-	 * @param instanceIndex      the index of the application to deploy
-	 * @return the value of adding the debug port + instance index.
-	 */
-	protected int calculateDebugPort(LocalDeployerProperties deployerProperties, int instanceIndex) {
-		return deployerProperties.getDebugPort() + instanceIndex;
-	}
-
 	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
-		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY) || this.localDeployerProperties.isUseSpringApplicationJson();
+		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY)
+				|| this.localDeployerProperties.isUseSpringApplicationJson();
 	}
 
-	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort, Map<String, String> appInstanceEnvVars) {
+	// TODO (tzolov): This method has a treacherous side affect! Apart from returning the computed Port it also modifies
+	//  the appInstanceEnvVars map! Later is used for down stream app deployment configuration.
+	//  As a consequence if you place the calcServerPort in wrong place (for example after the buildProcessBuilder(..)
+	//  call then the Port configuration won't be known to the command builder).
+	//  Proper solution is to (1) either make the method void and rename it to calcAndSetServerPort or (2) make the
+	//  method return the mutated appInstanceEnvVars. Sync with the SCT team because the method is used by the
+	//  LocalTaskLauncher (e.g. prod. grade)
+	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort,
+			Map<String, String> appInstanceEnvVars) {
 
 		int port = DEFAULT_SERVER_PORT;
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
 		if (useDynamicPort) {
-			port = getRandomPort();
+			port = getRandomPort(request);
+			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
 		else if (commandLineArgPort != null) {
 			port = commandLineArgPort;
@@ -404,13 +342,8 @@ public abstract class AbstractLocalDeployerSupport {
 			port = Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
 		}
 
-		if (useDynamicPort) {
-			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
-		}
-
 		return port;
 	}
-
 
 	/**
 	 * Will check if {@link LocalDeployerProperties#INHERIT_LOGGING} is set by checking
@@ -421,11 +354,11 @@ public abstract class AbstractLocalDeployerSupport {
 		return bindDeployerProperties.isInheritLogging();
 	}
 
-	public synchronized int getRandomPort() {
+	public synchronized int getRandomPort(AppDeploymentRequest request) {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
-			int randomInt = ThreadLocalRandom.current().nextInt(localDeployerProperties.getPortRange().getLow(), localDeployerProperties.getPortRange().getHigh());
+			int randomInt = getCommandBuilder(request).getPortSuggestion(localDeployerProperties);
 			try {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
@@ -442,7 +375,8 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (availPorts.isEmpty()) {
-			throw new IllegalStateException("Could not find an available TCP port in the range" + localDeployerProperties.getPortRange());
+			throw new IllegalStateException(
+					"Could not find an available TCP port in the range" + localDeployerProperties.getPortRange());
 		}
 
 		int finalPort = -1;
@@ -455,23 +389,19 @@ public abstract class AbstractLocalDeployerSupport {
 			}
 		}
 		if (finalPort == -1) {
-			throw new IllegalStateException("Could not find a free random port range " + localDeployerProperties.getPortRange());
+			throw new IllegalStateException(
+					"Could not find a free random port range " + localDeployerProperties.getPortRange());
 		}
 		logger.debug("Using Port: " + finalPort);
 		return finalPort;
 	}
 
 	protected Integer isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
-		Integer result = null;
-
-		for (String argument : request.getCommandlineArguments()) {
-			if (argument.startsWith(SERVER_PORT_KEY_COMMAND_LINE_ARG)) {
-				result = Integer.parseInt(argument.replace(SERVER_PORT_KEY_COMMAND_LINE_ARG, "").trim());
-				break;
-			}
-		}
-
-		return result;
+		return request.getCommandlineArguments().stream()
+				.filter(argument -> argument.startsWith(SERVER_PORT_KEY_COMMAND_LINE_ARG))
+				.map(argument -> Integer.parseInt(argument.replace(SERVER_PORT_KEY_COMMAND_LINE_ARG, "").trim()))
+				.findFirst()
+				.orElse(null);
 	}
 
 	protected interface Instance {

@@ -39,6 +39,7 @@ import org.springframework.validation.annotation.Validated;
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
  * @author David Turanski
+ * @author Christian Tzolov
  */
 @Validated
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
@@ -62,8 +63,17 @@ public class LocalDeployerProperties {
 	 * Remote debugging property allowing one to specify port for the remote debug
 	 * session. Must be set per individual application (<em>i.e.</em>
 	 * {@literal deployer.<app-name>.local.debugPort=9999}).
+	 * @deprecated This is only JDK 8 compatible. Use the {@link #DEBUG_ADDRESS} instead for supporting all JDKs.
 	 */
 	public static final String DEBUG_PORT = PREFIX + ".debug-port";
+
+	/**
+	 * Remote debugging property allowing one to specify the address for the remote debug
+	 * session. On Java versions 1.8 or older use the <em>port</em> format. On Java versions 1.9 or greater use the
+	 * <em>host:port</em> format. The host could default to <em>*</em>. May be set for individual applications (<em>i.e.</em>
+	 * {@literal deployer.<app-name>.local.debugAddress=*:9999}).
+	 */
+	public static final String DEBUG_ADDRESS = PREFIX + ".debug-address";
 
 	/**
 	 * Remote debugging property allowing one to specify if the startup of the
@@ -77,8 +87,7 @@ public class LocalDeployerProperties {
 
 	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";
 
-	// looks like some windows systems uses 'Path' but processbuilder give it as
-	// 'PATH'
+	// looks like some windows systems uses 'Path' but process builder give it as 'PATH'
 	private static final String[] ENV_VARS_TO_INHERIT_DEFAULTS_WIN = { "TMP", "TEMP", "PATH", "Path",
 			AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON };
 
@@ -127,16 +136,57 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
-	private PortRange portRange = new PortRange();
+	private final PortRange portRange = new PortRange();
+
+
+	/**
+	 * The maximum concurrent tasks allowed for this platform instance.
+	 */
+	@Min(1)
+	private int maximumConcurrentTasks = 20;
+
+	/**
+	 * Set remote debugging port for JDK 8 runtimes.
+	 * @deprecated Use the {@link #debugAddress} instead!
+	 */
+	private Integer debugPort;
+
+	/**
+	 * Debugging address for the remote clients to attache to. Addresses have the format "<name>:<port>" where <name>
+	 * is the host name and <port> is the socket port number at which it attaches or listens.
+	 * For JDK 8 or earlier, the address consists of the port number alone (the host name is implicit to localhost).
+	 * Example addresses for JDK version 9 or higher: <code>*:20075, 192.168.178.10:20075</code>.
+	 * Example addresses for JDK version 8 or earlier: <code>20075</code>.
+	 */
+	private String debugAddress;
+
+	public enum DebugSuspendType {y, n};
+	/**
+	 * Suspend defines whether the JVM should suspend and wait for a debugger to attach or not
+	 */
+	private DebugSuspendType debugSuspend = DebugSuspendType.y;
+
+	private boolean inheritLogging;
+
+	private final Docker docker = new Docker();
+
+	/**
+	 * (optional) hostname to use when computing the URL of the deployed application.
+	 * By default the {@link CommandBuilder} implementations decide how to build the hostname.
+	 */
+	private String hostname;
 
 	public LocalDeployerProperties() {
 	}
 
 	public LocalDeployerProperties(LocalDeployerProperties from) {
 		this.debugPort = from.getDebugPort();
+		this.debugAddress = from.getDebugAddress();
 		this.debugSuspend = from.getDebugSuspend();
 		this.deleteFilesOnExit = from.isDeleteFilesOnExit();
 		this.docker.network = from.getDocker().getNetwork();
+		this.docker.deleteContainerOnExit = from.getDocker().isDeleteContainerOnExit();
+		this.docker.portRange = from.getDocker().getPortRange();
 		this.envVarsToInherit = new String[from.getEnvVarsToInherit().length];
 		System.arraycopy(from.getEnvVarsToInherit(), 0, this.envVarsToInherit, 0, from.getEnvVarsToInherit().length);
 		this.inheritLogging = from.isInheritLogging();
@@ -148,6 +198,7 @@ public class LocalDeployerProperties {
 		this.shutdownTimeout = from.getShutdownTimeout();
 		this.useSpringApplicationJson = from.isUseSpringApplicationJson();
 		this.workingDirectoriesRoot = Paths.get(from.getWorkingDirectoriesRoot().toUri());
+		this.hostname =from.getHostname();
 	}
 
 	public static class PortRange {
@@ -214,24 +265,25 @@ public class LocalDeployerProperties {
 		}
 	}
 
-	/**
-	 * The maximum concurrent tasks allowed for this platform instance.
-	 */
-	@Min(1)
-	private int maximumConcurrentTasks = 20;
-
-	private Integer debugPort;
-
-	private String debugSuspend;
-
-	private boolean inheritLogging;
-
-	private Docker docker = new Docker();
-
 	public static class Docker {
+		/**
+		 * Container network
+		 */
 		private String network = "bridge";
 
+		/**
+		 * Whether to delete the container on container exit.
+		 */
 		private boolean deleteContainerOnExit = true;
+
+		/**
+		 *  Allow the Docker command builder use its own port range.
+		 */
+		private PortRange portRange = new PortRange();
+
+		public PortRange getPortRange() {
+			return portRange;
+		}
 
 		public String getNetwork() {
 			return network;
@@ -270,14 +322,9 @@ public class LocalDeployerProperties {
 			}
 			Docker other = (Docker) obj;
 			if (network == null) {
-				if (other.network != null) {
-					return false;
-				}
+				return other.network == null;
 			}
-			else if (!network.equals(other.network)) {
-				return false;
-			}
-			return true;
+			else return network.equals(other.network);
 		}
 	}
 
@@ -285,20 +332,38 @@ public class LocalDeployerProperties {
 		return docker;
 	}
 
+	public String getHostname() {
+		return hostname;
+	}
+
+	public void setHostname(String hostname) {
+		this.hostname = hostname;
+	}
+
 	public Integer getDebugPort() {
 		return debugPort;
 	}
 
-	public String getDebugSuspend() {
+	public DebugSuspendType getDebugSuspend() {
 		return debugSuspend;
 	}
 
-	public void setDebugSuspend(String debugSuspend) {
+	public void setDebugSuspend(DebugSuspendType debugSuspend) {
 		this.debugSuspend = debugSuspend;
 	}
 
 	public void setDebugPort(Integer debugPort) {
+		logger.warn("The debugPort is deprecated! It supports only pre Java 9 environments. " +
+				"Please use the debugAddress property instead!");
 		this.debugPort = debugPort;
+	}
+
+	public String getDebugAddress() {
+		return debugAddress;
+	}
+
+	public void setDebugAddress(String debugAddress) {
+		this.debugAddress = debugAddress;
 	}
 
 	public boolean isInheritLogging() {
@@ -477,6 +542,14 @@ public class LocalDeployerProperties {
 			}
 		}
 		else if (!debugPort.equals(other.debugPort)) {
+			return false;
+		}
+		if (debugAddress == null) {
+			if (other.debugAddress != null) {
+				return false;
+			}
+		}
+		else if (!debugAddress.equals(other.debugAddress)) {
 			return false;
 		}
 		if (debugSuspend == null) {
