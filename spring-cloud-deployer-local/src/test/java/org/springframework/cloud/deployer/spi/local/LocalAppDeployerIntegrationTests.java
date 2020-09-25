@@ -86,7 +86,7 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Ilayaperumal Gopinathan
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot", "spring-cloud-deployer-spi-test-use-docker=true" })
 public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegrationTests {
 
 	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";
@@ -297,6 +297,8 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 				String containerId = getCommandOutput("docker ps -q --filter ancestor="+ TESTAPP_DOCKER_IMAGE_NAME);
 				String logOutput = getCommandOutput("docker logs "+ containerId);
 				assertTrue(logOutput.contains("Listening for transport dt_socket at address: 8888"));
+				String containerPorts = getCommandOutputAll("docker port "+ containerId);
+				assertTrue(containerPorts.contains("8888/tcp -> 0.0.0.0:8888"));
 			} catch (IOException e) {
 			}
 		}
@@ -533,6 +535,12 @@ public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegra
 		Process process = Runtime.getRuntime().exec(cmd);
 		BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
 		return stdInput.lines().findFirst().get();
+	}
+
+	private String getCommandOutputAll(String cmd) throws IOException {
+		Process process = Runtime.getRuntime().exec(cmd);
+		BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+		return stdInput.lines().collect(Collectors.joining());
 	}
 
 	@Configuration
