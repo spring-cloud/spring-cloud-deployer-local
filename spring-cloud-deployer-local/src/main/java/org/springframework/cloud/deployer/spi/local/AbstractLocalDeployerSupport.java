@@ -21,12 +21,12 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IllegalFormatException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -130,37 +130,6 @@ public abstract class AbstractLocalDeployerSupport {
 		return new RestTemplate();
 	}
 
-	protected String buildRemoteDebugInstruction(LocalDeployerProperties deployerProperties, String deploymentId,
-			int instanceIndex, int port) {
-		JavaVersionParser javaVersionParser = new JavaVersionParser();
-		String ds = "y";
-		if (StringUtils.hasText(deployerProperties.getDebugSuspend())) {
-			ds = deployerProperties.getDebugSuspend();
-		}
-		StringBuilder debugCommandBuilder = new StringBuilder();
-
-		logger.warn("Deploying app with deploymentId {}, instance {}. Remote debugging is enabled on port {}.",
-				deploymentId, instanceIndex, port);
-
-		debugCommandBuilder.append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=");
-		debugCommandBuilder.append(ds.trim());
-		debugCommandBuilder.append(",address=");
-		if (javaVersionParser.versionAsOrdinal() > 8) {
-			debugCommandBuilder.append(deployerProperties.getDebugHost()).append(":");
-		}
-		debugCommandBuilder.append(port);
-
-		String debugCommand = debugCommandBuilder.toString();
-		logger.debug("Deploying app with deploymentId {}, instance {}.  Debug Command = [{}]", debugCommand);
-
-		if (ds.equals("y")) {
-			logger.warn("Deploying app with deploymentId {}.  Application Startup will be suspended until remote "
-					+ "debugging session is established.");
-		}
-
-		return debugCommand;
-	}
-
 	/**
 	 * Create the RuntimeEnvironmentInfo.
 	 *
@@ -200,10 +169,8 @@ public abstract class AbstractLocalDeployerSupport {
 
 		Map<String, String> appPropertiesToUse = formatApplicationProperties(request, appInstanceEnv);
 		if (logger.isInfoEnabled()) {
-			logger.info(
-					"Preparing to run an application from {}. "
-							+ "This may take some time if the artifact must be downloaded from a remote host.",
-					request.getResource());
+			logger.info("Preparing to run an application from {}. This may take some time if the artifact must be " +
+					"downloaded from a remote host.", request.getResource());
 		}
 
 		if (request.getResource() instanceof DockerResource) {
@@ -229,23 +196,20 @@ public abstract class AbstractLocalDeployerSupport {
 
 		LocalDeployerProperties bindDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
 
-		if (this.containsValidDebugPort(bindDeployerProperties, deploymentId)) {
-
-			int portToUse = calculateDebugPort(bindDeployerProperties, appInstanceNumber.orElse(0));
-
-			String debugInstruction = this.buildRemoteDebugInstruction(bindDeployerProperties, deploymentId,
-					appInstanceNumber.orElse(0), portToUse);
+		DebugAddress.from(bindDeployerProperties, appInstanceNumber.orElse(0)).ifPresent(debugAddress -> {
+			String debugCommand = debugAddress.getDebugCommand();
+			logger.debug("Deploying app with Debug Command = [{}]", debugCommand);
 
 			if (request.getResource() instanceof DockerResource) {
 				builder.command().add(2, "-e");
-				builder.command().add(3, "JAVA_TOOL_OPTIONS=" + debugInstruction);
+				builder.command().add(3, "JAVA_TOOL_OPTIONS=" + debugCommand);
 				builder.command().add(4, "-p");
-				builder.command().add(5,  String.format("%s:%s", portToUse, portToUse));
+				builder.command().add(5, String.format("%s:%s", debugAddress.getPort(), debugAddress.getPort()));
 			}
 			else {
-				builder.command().add(1, debugInstruction);
+				builder.command().add(1, debugCommand);
 			}
-		}
+		});
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
 		logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
@@ -306,7 +270,7 @@ public abstract class AbstractLocalDeployerSupport {
 	 * Shut down the {@link Process} backing the application {@link Instance}. If the
 	 * application exposes a {@code /shutdown} endpoint, that will be invoked followed by a
 	 * wait that will not exceed the number of seconds indicated by
-	 * {@link LocalDeployerProperties#shutdownTimeout}. If the timeout period is exceeded (or
+	 * {@link LocalDeployerProperties#getShutdownTimeout()} . If the timeout period is exceeded (or
 	 * if the {@code /shutdown} endpoint is not exposed), the process will be shut down via
 	 * {@link Process#destroy()}.
 	 *
@@ -359,36 +323,88 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 	}
 
-	/**
-	 * Determines if there is a valid debug port specified in the deployment properites.
-	 *
-	 * @param deployerProperties the deployment properties to validate
-	 * @param deploymentId the deployment Id for logging purposes
-	 * @return true if there is a valid debug port, false otherwise
-	 */
-	protected boolean containsValidDebugPort(LocalDeployerProperties deployerProperties, String deploymentId) {
-		boolean validDebugPort = false;
-		if (deployerProperties.getDebugPort() != null) {
-			if (deployerProperties.getDebugPort() <= 0) {
-				logger.error("The debug port {} specified for deploymentId {} must be greater than zero");
-				return false;
-			}
-			validDebugPort = true;
-		}
-		return validDebugPort;
-	}
+	public static class DebugAddress {
+		private static final Pattern HOSTNAME_PATTERN = Pattern.compile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
+		private static final Pattern IP_PATTERN = Pattern.compile("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
+		private static final Pattern PORT_PATTERN = Pattern.compile("^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$");
 
-	/**
-	 * Gets the base debug port value and adds the instance count. Assumes
-	 * {@link #containsValidDebugPort(LocalDeployerProperties, String)} has been called before
-	 * to validate the deployment properties.
-	 *
-	 * @param deployerProperties deployment properties with a valid value of debug port
-	 * @param instanceIndex the index of the application to deploy
-	 * @return the value of adding the debug port + instance index.
-	 */
-	protected int calculateDebugPort(LocalDeployerProperties deployerProperties, int instanceIndex) {
-		return deployerProperties.getDebugPort() + instanceIndex;
+		public final static Logger logger = LoggerFactory.getLogger(DebugAddress.class);
+
+		private final String host;
+		private final String port;
+		private final String address;
+		private final String suspend;
+
+		private DebugAddress(String host, int port, String suspend) {
+			this.host = host;
+			this.port = "" + port;
+			this.suspend = (StringUtils.hasText(suspend)) ? suspend.trim() : "y";
+			this.address = (StringUtils.hasText(host)) ? String.format("%s:%s", host, port) : this.port;
+		}
+
+		public String getHost() {
+			return host;
+		}
+
+		public String getPort() {
+			return port;
+		}
+
+		public String getSuspend() {
+			return suspend;
+		}
+
+		public String getAddress() {
+			return this.address;
+		}
+
+		public String getDebugCommand() {
+			return String.format("-agentlib:jdwp=transport=dt_socket,server=y,suspend=%s,address=%s",
+					this.suspend,
+					this.address);
+		}
+
+		public static Optional<DebugAddress> from(LocalDeployerProperties deployerProperties, int instanceNumber) {
+
+			if (!StringUtils.hasText(deployerProperties.getDebugAddress()) && deployerProperties.getDebugPort() == null) {
+				return Optional.empty();
+			}
+
+			String debugHost = null;
+			String debugPort = ("" + deployerProperties.getDebugPort()).trim();
+
+			if (StringUtils.hasText(deployerProperties.getDebugAddress())) {
+				String[] addressParts = deployerProperties.getDebugAddress().split(":");
+
+				if (addressParts.length == 1) { // JDK 8 only
+					debugPort = addressParts[0].trim();
+				}
+				else if (addressParts.length == 2) { // JDK 9+
+					debugHost = addressParts[0].trim();
+					debugPort = addressParts[1].trim();
+
+					if (!("*".equals(debugHost)
+							|| HOSTNAME_PATTERN.matcher(debugHost).matches()
+							|| IP_PATTERN.matcher(debugHost).matches())) {
+						logger.warn("Invalid debug Host: {}", deployerProperties.getDebugAddress());
+						return Optional.empty();
+					}
+				}
+				else {
+					logger.warn("Invalid debug address: {}", deployerProperties.getDebugAddress());
+					return Optional.empty();
+				}
+			}
+
+			if (!PORT_PATTERN.matcher(debugPort).matches()) {
+				logger.warn("Invalid debug port: {}", debugPort);
+				return Optional.empty();
+			}
+
+			int portToUse = Integer.parseInt(debugPort) + instanceNumber;
+
+			return Optional.of(new DebugAddress(debugHost, portToUse, deployerProperties.getDebugSuspend()));
+		}
 	}
 
 	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
@@ -482,30 +498,6 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 
 		return result;
-	}
-
-	static class JavaVersionParser {
-		private final String versionAsString;
-
-		JavaVersionParser() {
-			this(System.getProperty("java.specification.version"));
-		}
-
-		JavaVersionParser(String versionAsString) {
-			this.versionAsString = versionAsString;
-		}
-
-		//Earlier java versions 1.8 and below use '1.x'. Later vesions use 'X'
-		int versionAsOrdinal() {
-			if (versionAsString.startsWith("1.")) {
-				String[] tokens = versionAsString.split("\\.");
-				if (tokens.length < 2) {
-					throw new IllegalArgumentException(versionAsString + "is not valid");
-				}
-				return Integer.valueOf(tokens[1]);
-			}
-			return Integer.valueOf(versionAsString);
-		}
 	}
 
 	protected interface Instance {

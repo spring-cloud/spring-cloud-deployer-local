@@ -39,6 +39,7 @@ import org.springframework.validation.annotation.Validated;
  * @author Oleg Zhurakousky
  * @author Vinicius Carvalho
  * @author David Turanski
+ * @author Christian Tzolov
  */
 @Validated
 @ConfigurationProperties(prefix = LocalDeployerProperties.PREFIX)
@@ -66,11 +67,12 @@ public class LocalDeployerProperties {
 	public static final String DEBUG_PORT = PREFIX + ".debug-port";
 
 	/**
-	 * Remote debugging property allowing one to specify host for the remote debug
-	 * session on Java versions greater than 1.8. Default is <em>*</em>. May be set for individual applications (<em>i.e.</em>
-	 * {@literal deployer.<app-name>.local.debugHost=127.0.0.1}).
+	 * Remote debugging property allowing one to specify the address for the remote debug
+	 * session. On Java versions 1.8 or older use the <em>port</em> format. On Java versions 1.9 or greater use the
+	 * <em>host:port</em> format. The host could default to <em>*</em>. May be set for individual applications (<em>i.e.</em>
+	 * {@literal deployer.<app-name>.local.debugAddress=*:9999}).
 	 */
-	public static final String DEBUG_HOST = PREFIX + ".debug-host";
+	public static final String DEBUG_ADDRESS = PREFIX + ".debug-address";
 
 	/**
 	 * Remote debugging property allowing one to specify if the startup of the
@@ -134,14 +136,14 @@ public class LocalDeployerProperties {
 	 */
 	private boolean useSpringApplicationJson = true;
 
-	private PortRange portRange = new PortRange();
+	private final PortRange portRange = new PortRange();
 
 	public LocalDeployerProperties() {
 	}
 
 	public LocalDeployerProperties(LocalDeployerProperties from) {
 		this.debugPort = from.getDebugPort();
-		this.debugHost = from.getDebugHost();
+		this.debugAddress = from.getDebugAddress();
 		this.debugSuspend = from.getDebugSuspend();
 		this.deleteFilesOnExit = from.isDeleteFilesOnExit();
 		this.docker.network = from.getDocker().getNetwork();
@@ -228,15 +230,23 @@ public class LocalDeployerProperties {
 	@Min(1)
 	private int maximumConcurrentTasks = 20;
 
+	/**
+	 * Set remote debugging port for JDK 8 runtimes.
+	 * Deprecated: Please use the {@link #debugAddress} instead!
+	 */
 	private Integer debugPort;
-	
-	private String debugHost="*";
+
+	/**
+	 * Set remote debugging address. Supports JDK 8 and JDK 9+ formats.
+	 * For JDK 8 use only [port]. The JDK 9 and newer requires [hostname]:[port]. The [hostname] can be "*".
+	 */
+	private String debugAddress;
 
 	private String debugSuspend;
 
 	private boolean inheritLogging;
 
-	private Docker docker = new Docker();
+	private final Docker docker = new Docker();
 
 	public static class Docker {
 		private String network = "bridge";
@@ -280,14 +290,9 @@ public class LocalDeployerProperties {
 			}
 			Docker other = (Docker) obj;
 			if (network == null) {
-				if (other.network != null) {
-					return false;
-				}
+				return other.network == null;
 			}
-			else if (!network.equals(other.network)) {
-				return false;
-			}
-			return true;
+			else return network.equals(other.network);
 		}
 	}
 
@@ -311,12 +316,12 @@ public class LocalDeployerProperties {
 		this.debugPort = debugPort;
 	}
 
-	public String getDebugHost() {
-		return debugHost;
+	public String getDebugAddress() {
+		return debugAddress;
 	}
 
-	public void setDebugHost(String debugHost) {
-		this.debugHost = debugHost;
+	public void setDebugAddress(String debugAddress) {
+		this.debugAddress = debugAddress;
 	}
 
 	public boolean isInheritLogging() {
@@ -497,7 +502,12 @@ public class LocalDeployerProperties {
 		else if (!debugPort.equals(other.debugPort)) {
 			return false;
 		}
-		if (!debugHost.equals(other.debugHost)) {
+		if (debugAddress == null) {
+			if (other.debugAddress != null) {
+				return false;
+			}
+		}
+		else if (!debugAddress.equals(other.debugAddress)) {
 			return false;
 		}
 		if (debugSuspend == null) {

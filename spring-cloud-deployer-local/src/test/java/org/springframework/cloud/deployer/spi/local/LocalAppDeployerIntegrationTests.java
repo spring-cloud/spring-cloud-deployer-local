@@ -86,7 +86,7 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  * @author Ilayaperumal Gopinathan
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot", "spring-cloud-deployer-spi-test-use-docker=true" })
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot"})
 public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegrationTests {
 
 	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";
