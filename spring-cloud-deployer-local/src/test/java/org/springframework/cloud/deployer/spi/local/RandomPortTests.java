@@ -15,26 +15,39 @@
  */
 package org.springframework.cloud.deployer.spi.local;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
+import org.springframework.core.io.ClassPathResource;
+
+import static org.mockito.Mockito.when;
 
 /**
  * @author Mark Pollack
  */
+@ExtendWith(MockitoExtension.class)
 public class RandomPortTests {
 
 	private AbstractLocalDeployerSupport localDeployerSupport;
 
-	@Before
+	@Mock
+	AppDeploymentRequest appDeploymentRequest;
+
+	@BeforeEach
 	public void setUp() {
 		localDeployerSupport = new AbstractLocalDeployerSupport(new LocalDeployerProperties()) {};
+		when(appDeploymentRequest.getResource()).thenReturn(new ClassPathResource(""));
 	}
 
 	@Test
 	public void portTests() {
 		//No exception should be thrown
 		for (int i = 0; i < 100; i++) {
-			localDeployerSupport.getRandomPort();
+			localDeployerSupport.getRandomPort(appDeploymentRequest);
 		}
 	}
 

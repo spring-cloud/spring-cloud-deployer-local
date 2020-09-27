@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -51,6 +52,12 @@ public class JavaCommandBuilder implements CommandBuilder {
 
 	public JavaCommandBuilder(LocalDeployerProperties properties) {
 		this.properties = properties;
+	}
+
+	@Override
+	public int getPortSuggestion(LocalDeployerProperties localDeployerProperties) {
+		return ThreadLocalRandom.current().nextInt(localDeployerProperties.getPortRange().getLow(),
+				localDeployerProperties.getPortRange().getHigh());
 	}
 
 	@Override

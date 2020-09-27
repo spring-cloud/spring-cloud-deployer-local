@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.http.client.config.RequestConfig;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -134,7 +133,7 @@ public class LocalDeployerSupportTests {
 	}
 
 
-	protected Resource testResource() throws MalformedURLException {
+	protected Resource testResource() {
 		return new ClassPathResource("testResource.txt");
 	}
 

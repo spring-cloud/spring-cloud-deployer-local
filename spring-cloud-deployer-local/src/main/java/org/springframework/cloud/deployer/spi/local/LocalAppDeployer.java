@@ -286,31 +286,36 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		// to be deployed in this iteration
 		Map<String, String> appInstanceEnv = new HashMap<>(consolidatedAppProperties);
 
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
-		int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
-
 		// we only set 'normal' style props reflecting what we set for env format
 		// for cross reference to work inside SAJ.
 		// looks like for now we can't remove these env style formats as i.e.
 		// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
 		// this might be indication that we can't yet fully remove those.
+		String guid = String.format("%s-%s", deploymentId, index);
 		if (useSpringApplicationJson(request)) {
 			appInstanceEnv.put("instance.index", Integer.toString(index));
 			appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(index));
 			appInstanceEnv.put("spring.application.index", Integer.toString(index));
-			appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
+			appInstanceEnv.put("spring.cloud.application.guid", guid);
 		}
 		else {
 			appInstanceEnv.put("INSTANCE_INDEX", Integer.toString(index));
 			appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(index));
-			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
+			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", guid);
 		}
+
+		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
+		// WATCH OUT: The calcServerPort sets the computed port in the appInstanceEnv#SERVER_PORT_KEY.
+		//  Later is implicitly passed to and used inside the command builder. Therefore the calcServerPort() method
+		//  must always be called before the buildProcessBuilder(..)!
+		int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
 
 		ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(index), deploymentId)
 				.inheritIO();
 		builder.directory(workDir.toFile());
 
 		URL baseUrl = getCommandBuilder(request).getBaseUrl(deploymentId, index, port);
+
 		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl,
 				localDeployerPropertiesToUse.getStartupProbe(), localDeployerPropertiesToUse.getHealthProbe());
 		if (this.shouldInheritLogging(request)) {
@@ -370,7 +375,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			this.port = port;
 			this.baseUrl = baseUrl;
 			this.attributes.put("port", Integer.toString(port));
-			this.attributes.put("guid", Integer.toString(port));
+			this.attributes.put("guid", deploymentId);
 			this.attributes.put("url", baseUrl.toString());
 			this.startupProbeExecutor = HttpProbeExecutor.from(baseUrl, startupProbe);
 			this.healthProbeExecutor = HttpProbeExecutor.from(baseUrl, healthProbe);

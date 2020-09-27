@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -63,10 +64,17 @@ public class DockerCommandBuilder implements CommandBuilder {
 	}
 
 	@Override
+	public int getPortSuggestion(LocalDeployerProperties localDeployerProperties) {
+		return ThreadLocalRandom.current().nextInt(localDeployerProperties.getDocker().getPortRange().getLow(),
+				localDeployerProperties.getDocker().getPortRange().getHigh());
+	}
+
+	@Override
 	public URL getBaseUrl(String deploymentId, int index, int port) {
 		try {
 			return new URL("http", String.format("%s-%d", deploymentId, index), port, "");
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new IllegalArgumentException(e);
 		}
 	}
@@ -116,7 +124,13 @@ public class DockerCommandBuilder implements CommandBuilder {
 			commands.add(String.format("%s:%s", debugAddress.getPort(), debugAddress.getPort()));
 		});
 
-		setPort(commands, appInstanceEnv);
+		String port = getPort(appInstanceEnv);
+
+		if (StringUtils.hasText(port)) {
+			commands.add("-p");
+			commands.add(String.format("%s:%s", port, port));
+		}
+
 
 		if (request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
 			if (appInstanceNumber.isPresent()) {
@@ -148,31 +162,18 @@ public class DockerCommandBuilder implements CommandBuilder {
 		return commands;
 	}
 
-	private void setPort(List<String> commands, Map<String, String> appInstanceEnv) {
-
-		String port;
-
+	private String getPort(Map<String, String> appInstanceEnv) {
 		if (appInstanceEnv.containsKey(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)) {
-			Map<String, String> properties = new HashMap<>();
-
 			try {
-				properties.putAll(OBJECT_MAPPER.readValue(
+				new HashMap<>((OBJECT_MAPPER.readValue(
 						appInstanceEnv.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON),
-						new TypeReference<HashMap<String, String>>() {}));
+						new TypeReference<HashMap<String, String>>() {}))
+				).get(LocalAppDeployer.SERVER_PORT_KEY);
 			}
 			catch (IOException e) {
 				throw new IllegalArgumentException("Unable to determine server port from SPRING_APPLICATION_JSON");
 			}
-
-			port = properties.get(LocalAppDeployer.SERVER_PORT_KEY);
 		}
-		else {
-			port = appInstanceEnv.get(LocalAppDeployer.SERVER_PORT_KEY);
-		}
-
-		if (StringUtils.hasText(port)) {
-			commands.add("-p");
-			commands.add(String.format("%s:%s", port, port));
-		}
+		return appInstanceEnv.get(LocalAppDeployer.SERVER_PORT_KEY);
 	}
 }

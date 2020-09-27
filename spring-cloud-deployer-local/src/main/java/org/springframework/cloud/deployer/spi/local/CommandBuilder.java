@@ -54,4 +54,11 @@ public interface CommandBuilder {
 	 * @return Returns app's URL.
 	 */
 	URL getBaseUrl(String deploymentId, int index, int port);
+
+	/**
+	 * Allow the concrete implementation to suggests the target application port.
+	 * @param localDeployerProperties
+	 * @return Returns a port suggestion.
+	 */
+	int getPortSuggestion(LocalDeployerProperties localDeployerProperties);
 }

@@ -325,7 +325,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Integer commandLineArgPort = isServerPortKeyPresentOnArgs(request);
 
 		if (useDynamicPort) {
-			port = getRandomPort();
+			port = getRandomPort(request);
 			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
 		else if (commandLineArgPort != null) {
@@ -347,12 +347,11 @@ public abstract class AbstractLocalDeployerSupport {
 		return bindDeployerProperties.isInheritLogging();
 	}
 
-	public synchronized int getRandomPort() {
+	public synchronized int getRandomPort(AppDeploymentRequest request) {
 		Set<Integer> availPorts = new HashSet<>();
 		// SocketUtils.findAvailableTcpPorts retries 6 times, add additional retry on top.
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
-			int randomInt = ThreadLocalRandom.current().nextInt(localDeployerProperties.getPortRange().getLow(),
-					localDeployerProperties.getPortRange().getHigh());
+			int randomInt = getCommandBuilder(request).getPortSuggestion(localDeployerProperties);
 			try {
 				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {

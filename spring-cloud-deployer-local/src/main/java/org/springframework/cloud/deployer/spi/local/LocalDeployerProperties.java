@@ -269,6 +269,15 @@ public class LocalDeployerProperties {
 		 */
 		private boolean deleteContainerOnExit = true;
 
+		/**
+		 *  Allow the Docker command builder use its own port range.
+		 */
+		private PortRange portRange = new PortRange();
+
+		public PortRange getPortRange() {
+			return portRange;
+		}
+
 		public String getNetwork() {
 			return network;
 		}
