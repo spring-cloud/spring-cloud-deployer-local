@@ -16,6 +16,8 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -52,17 +54,38 @@ public class JavaCommandBuilder implements CommandBuilder {
 	}
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-			Optional<Integer> appInstanceNumber) {
+	public URL getBaseUrl(String deploymentId, int index, int port) {
+		try {
+			return new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
+		}
+		catch (Exception e) {
+			throw new IllegalArgumentException(e);
+		}
+	}
+
+	@Override
+	public ProcessBuilder buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
+			String deployerId, Optional<Integer> appInstanceNumber, LocalDeployerProperties localDeployerProperties,
+			Optional<DebugAddress> debugAddressOption) {
 		ArrayList<String> commands = new ArrayList<>();
 		Map<String, String> deploymentProperties = request.getDeploymentProperties();
 		commands.add(bindDeploymentProperties(deploymentProperties).getJavaCmd());
+
+		debugAddressOption.ifPresent(debugAddress -> {
+			commands.add(debugAddress.getDebugCommand());
+		});
+
 		// Add Java System Properties (ie -Dmy.prop=val) before main class or -jar
 		addJavaOptions(commands, deploymentProperties, properties);
 		addJavaExecutionOptions(commands, request);
 		commands.addAll(request.getCommandlineArguments());
 		logger.debug("Java Command = " + commands);
-		return commands.toArray(new String[0]);
+
+		ProcessBuilder builder = new ProcessBuilder(AbstractLocalDeployerSupport.windowsSupport(commands.toArray(new String[0])));
+
+		builder.environment().putAll(appInstanceEnv);
+
+		return builder;
 	}
 
 	protected void addJavaOptions(List<String> commands, Map<String, String> deploymentProperties,

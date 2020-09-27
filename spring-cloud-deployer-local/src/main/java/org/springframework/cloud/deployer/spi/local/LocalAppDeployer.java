@@ -164,24 +164,6 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		String group = request.getDeploymentProperties().get(GROUP_PROPERTY_KEY);
 		String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
 
-
-		// consolidatedAppProperties is a Map of all application properties to be used by
-		// the app being launched. These values should end up as environment variables
-		// either explicitly or as a SPRING_APPLICATION_JSON value.
-		HashMap<String, String> consolidatedAppProperties = new HashMap<>(request.getDefinition().getProperties());
-
-		consolidatedAppProperties.put(JMX_DEFAULT_DOMAIN_KEY, deploymentId);
-
-		if (!request.getDefinition().getProperties().containsKey(ENDPOINTS_SHUTDOWN_ENABLED_KEY)) {
-			consolidatedAppProperties.put(ENDPOINTS_SHUTDOWN_ENABLED_KEY, "true");
-		}
-
-		consolidatedAppProperties.put("endpoints.jmx.unique-names", "true");
-
-		if (group != null) {
-			consolidatedAppProperties.put("spring.cloud.application.group", group);
-		}
-
 		try {
 			Path workDir = createWorkingDir(request.getDeploymentProperties(), deploymentId);
 			int deltaCount = appScaleRequest.getCount() - instances.size();
@@ -272,7 +254,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 	}
 
 	@PreDestroy
-	public void shutdown() throws Exception {
+	public void shutdown() {
 		for (String deploymentId : running.keySet()) {
 			undeploy(deploymentId);
 		}
@@ -280,8 +262,8 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 	private AppInstance deployApp(AppDeploymentRequest request, Path workDir, String group, String deploymentId,
 			int index, Map<String, String> deploymentProperties) throws IOException {
+
 		LocalDeployerProperties localDeployerPropertiesToUse = bindDeploymentProperties(deploymentProperties);
-		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 
 		// consolidatedAppProperties is a Map of all application properties to be used by
 		// the app being launched. These values should end up as environment variables
@@ -303,7 +285,15 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		// This Map is the consolidated application properties *for the instance*
 		// to be deployed in this iteration
 		Map<String, String> appInstanceEnv = new HashMap<>(consolidatedAppProperties);
+
+		boolean useDynamicPort = !request.getDefinition().getProperties().containsKey(SERVER_PORT_KEY);
 		int port = calcServerPort(request, useDynamicPort, appInstanceEnv);
+
+		// we only set 'normal' style props reflecting what we set for env format
+		// for cross reference to work inside SAJ.
+		// looks like for now we can't remove these env style formats as i.e.
+		// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
+		// this might be indication that we can't yet fully remove those.
 		if (useSpringApplicationJson(request)) {
 			appInstanceEnv.put("instance.index", Integer.toString(index));
 			appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(index));
@@ -315,29 +305,14 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			appInstanceEnv.put("SPRING_APPLICATION_INDEX", Integer.toString(index));
 			appInstanceEnv.put("SPRING_CLOUD_APPLICATION_GUID", Integer.toString(port));
 		}
-		// we only set 'normal' style props reflecting what we set for env format
-		// for cross reference to work inside SAJ.
-		// looks like for now we can't remove these env style formats as i.e.
-		// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
-		// this might be indication that we can't yet fully remove those.
-		if (useSpringApplicationJson(request)) {
-			appInstanceEnv.put("instance.index", Integer.toString(index));
-			appInstanceEnv.put("spring.application.index", Integer.toString(index));
-			appInstanceEnv.put("spring.cloud.application.guid", Integer.toString(port));
-		}
 
-		URL baseUrl;
-		if (request.getResource() instanceof DockerResource) {
-			baseUrl = new URL("http", String.format("%s-%d", deploymentId, index), port, "");
-		} else {
-			baseUrl = new URL("http", Inet4Address.getLocalHost().getHostAddress(), port, "");
-		}
-
-		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl,
-				localDeployerPropertiesToUse.getStartupProbe(), localDeployerPropertiesToUse.getHealthProbe());
 		ProcessBuilder builder = buildProcessBuilder(request, appInstanceEnv, Optional.of(index), deploymentId)
 				.inheritIO();
 		builder.directory(workDir.toFile());
+
+		URL baseUrl = getCommandBuilder(request).getBaseUrl(deploymentId, index, port);
+		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl,
+				localDeployerPropertiesToUse.getStartupProbe(), localDeployerPropertiesToUse.getHealthProbe());
 		if (this.shouldInheritLogging(request)) {
 			instance.start(builder, workDir);
 			logger.info("Deploying app with deploymentId {} instance {}.\n   Logs will be inherited.",

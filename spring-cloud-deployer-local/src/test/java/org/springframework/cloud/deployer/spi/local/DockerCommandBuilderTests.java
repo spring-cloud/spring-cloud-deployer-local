@@ -16,21 +16,20 @@
 
 package org.springframework.cloud.deployer.spi.local;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.core.io.Resource;
 
-import static org.hamcrest.CoreMatchers.hasItems;
-import static org.hamcrest.collection.IsArrayContainingInOrder.arrayContaining;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link DockerCommandBuilder}.
@@ -40,17 +39,18 @@ import static org.junit.Assert.assertThat;
  */
 public class DockerCommandBuilderTests {
 
-	private DockerCommandBuilder commandBuilder = new DockerCommandBuilder(null, true);
-
 	@Test
 	public void testContainerName() {
 		AppDefinition appDefinition = new AppDefinition("foo", null);
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		String[] command = commandBuilder.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
 
-		assertThat(command, arrayContaining("docker", "run", "--rm", "--name=gogo-1", "foo/bar"));
+		ProcessBuilder builder = new DockerCommandBuilder(null, true)
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						new LocalDeployerProperties(), Optional.empty());
+		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--rm", "--name=gogo-1",
+				"foo/bar", "deployerId=deployerId"));
 	}
 
 	@Test
@@ -59,10 +59,11 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default", true)
-				.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
-
-		assertThat(command, arrayContaining("docker", "run", "--network", "spring-cloud-dataflow-server_default",  "--rm", "--name=gogo-1", "foo/bar"));
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", true)
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						new LocalDeployerProperties(), Optional.empty());
+		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
+				"--rm", "--name=gogo-1", "foo/bar"));
 	}
 
 	@Test
@@ -71,28 +72,47 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		String[] command = new DockerCommandBuilder("spring-cloud-dataflow-server_default", false)
-				.buildExecutionCommand(request, Collections.emptyMap(), Optional.of(1));
-
-		assertThat(command, arrayContaining("docker", "run", "--network", "spring-cloud-dataflow-server_default",  "--name=gogo-1", "foo/bar"));
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", false)
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						new LocalDeployerProperties(), Optional.empty());
+		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
+				"--name=gogo-1", "foo/bar"));
+		assertThat(builder.command()).doesNotContain("--rm");
 	}
 
 	@Test
-	public void testSpringApplicationJSON() throws Exception {
+	public void testUseLocalDeployerPropertiesToKeepStoppedContainer() {
+		AppDefinition appDefinition = new AppDefinition("foo", null);
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
+		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
+
+		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
+		localDeployerProperties.getDocker().setDeleteContainerOnExit(false);
+
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", true)
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						localDeployerProperties, Optional.empty());
+		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
+				"--name=gogo-1", "foo/bar"));
+		assertThat(builder.command()).doesNotContain("--rm");
+	}
+
+	@Test
+	public void testSpringApplicationJSON() {
 		LocalDeployerProperties properties = new LocalDeployerProperties();
 		LocalAppDeployer deployer = new LocalAppDeployer(properties);
-		AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo","bar"));
+		AppDefinition definition = new AppDefinition("foo", Collections.singletonMap("foo", "bar"));
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = new HashMap<>();
-		deploymentProperties.put(LocalDeployerProperties.DEBUG_PORT, "9999");
+		deploymentProperties.put(LocalDeployerProperties.DEBUG_ADDRESS, "*:9999");
 		deploymentProperties.put(LocalDeployerProperties.DEBUG_SUSPEND, "y");
 		deploymentProperties.put(LocalDeployerProperties.INHERIT_LOGGING, "true");
 		AppDeploymentRequest request = new AppDeploymentRequest(definition, resource, deploymentProperties);
-		ProcessBuilder builder = deployer.buildProcessBuilder(request, request.getDefinition().getProperties(), Optional.of(1), "foo" );
+		ProcessBuilder builder = deployer.buildProcessBuilder(request, request.getDefinition().getProperties(), Optional.of(1), "foo");
 
 		String SAJ = LocalDeployerUtils.isWindows() ? "SPRING_APPLICATION_JSON={\\\"foo\\\":\\\"bar\\\"}" : "SPRING_APPLICATION_JSON={\"foo\":\"bar\"}";
-		assertThat(builder.command(), hasItems("-e", SAJ));
-
+		assertThat(builder.command()).contains("-e", SAJ);
 	}
 
 }

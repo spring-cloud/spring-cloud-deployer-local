@@ -63,6 +63,7 @@ public class LocalDeployerProperties {
 	 * Remote debugging property allowing one to specify port for the remote debug
 	 * session. Must be set per individual application (<em>i.e.</em>
 	 * {@literal deployer.<app-name>.local.debugPort=9999}).
+	 * @deprecated This is only JDK 8 compatible. Use the {@link #DEBUG_ADDRESS} instead for supporting all JDKs.
 	 */
 	public static final String DEBUG_PORT = PREFIX + ".debug-port";
 
@@ -138,6 +139,38 @@ public class LocalDeployerProperties {
 
 	private final PortRange portRange = new PortRange();
 
+
+	/**
+	 * The maximum concurrent tasks allowed for this platform instance.
+	 */
+	@Min(1)
+	private int maximumConcurrentTasks = 20;
+
+	/**
+	 * Set remote debugging port for JDK 8 runtimes.
+	 * Deprecated: Please use the {@link #debugAddress} instead!
+	 */
+	private Integer debugPort;
+
+	/**
+	 * Debugging address for the remote clients to attache to. Addresses have the format "<name>:<port>" where <name>
+	 * is the host name and <port> is the socket port number at which it attaches or listens.
+	 * For JDK 8 or earlier, the address consists of the port number alone (the host name is implicit to localhost).
+	 * Example addresses for JDK version 9 or higher: <code>*:20075, 192.168.178.10:20075</code>.
+	 * Example addresses for JDK version 8 or earlier: <code>20075</code>.
+	 */
+	private String debugAddress;
+
+	public enum DebugSuspendType {y, n};
+	/**
+	 * Suspend defines whether the JVM should suspend and wait for a debugger to attach or not
+	 */
+	private DebugSuspendType debugSuspend = DebugSuspendType.y;
+
+	private boolean inheritLogging;
+
+	private final Docker docker = new Docker();
+
 	public LocalDeployerProperties() {
 	}
 
@@ -147,6 +180,7 @@ public class LocalDeployerProperties {
 		this.debugSuspend = from.getDebugSuspend();
 		this.deleteFilesOnExit = from.isDeleteFilesOnExit();
 		this.docker.network = from.getDocker().getNetwork();
+		this.docker.deleteContainerOnExit = from.getDocker().isDeleteContainerOnExit();
 		this.envVarsToInherit = new String[from.getEnvVarsToInherit().length];
 		System.arraycopy(from.getEnvVarsToInherit(), 0, this.envVarsToInherit, 0, from.getEnvVarsToInherit().length);
 		this.inheritLogging = from.isInheritLogging();
@@ -224,33 +258,15 @@ public class LocalDeployerProperties {
 		}
 	}
 
-	/**
-	 * The maximum concurrent tasks allowed for this platform instance.
-	 */
-	@Min(1)
-	private int maximumConcurrentTasks = 20;
-
-	/**
-	 * Set remote debugging port for JDK 8 runtimes.
-	 * Deprecated: Please use the {@link #debugAddress} instead!
-	 */
-	private Integer debugPort;
-
-	/**
-	 * Set remote debugging address. Supports JDK 8 and JDK 9+ formats.
-	 * For JDK 8 use only [port]. The JDK 9 and newer requires [hostname]:[port]. The [hostname] can be "*".
-	 */
-	private String debugAddress;
-
-	private String debugSuspend;
-
-	private boolean inheritLogging;
-
-	private final Docker docker = new Docker();
-
 	public static class Docker {
+		/**
+		 * Container network
+		 */
 		private String network = "bridge";
 
+		/**
+		 * Whether to delete the container on container exit.
+		 */
 		private boolean deleteContainerOnExit = true;
 
 		public String getNetwork() {
@@ -304,11 +320,11 @@ public class LocalDeployerProperties {
 		return debugPort;
 	}
 
-	public String getDebugSuspend() {
+	public DebugSuspendType getDebugSuspend() {
 		return debugSuspend;
 	}
 
-	public void setDebugSuspend(String debugSuspend) {
+	public void setDebugSuspend(DebugSuspendType debugSuspend) {
 		this.debugSuspend = debugSuspend;
 	}
 

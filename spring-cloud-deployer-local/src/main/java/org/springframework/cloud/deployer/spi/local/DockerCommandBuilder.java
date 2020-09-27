@@ -16,7 +16,9 @@
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,24 +63,40 @@ public class DockerCommandBuilder implements CommandBuilder {
 	}
 
 	@Override
-	public String[] buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-										  Optional<Integer> appInstanceNumber) {
-		List<String> commands = addDockerOptions(request, appInstanceEnv, appInstanceNumber);
+	public URL getBaseUrl(String deploymentId, int index, int port) {
+		try {
+			return new URL("http", String.format("%s-%d", deploymentId, index), port, "");
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e);
+		}
+	}
+
+	@Override
+	public ProcessBuilder buildExecutionCommand(AppDeploymentRequest request, Map<String, String> appInstanceEnv, String deployerId,
+			Optional<Integer> appInstanceNumber, LocalDeployerProperties localDeployerProperties,
+			Optional<DebugAddress> debugAddressOption) {
+
+		appInstanceEnv.put("deployerId", deployerId);
+		List<String> commands = addDockerOptions(request, appInstanceEnv, appInstanceNumber, localDeployerProperties, debugAddressOption);
 		commands.addAll(request.getCommandlineArguments());
 		logger.debug("Docker Command = " + commands);
-		return commands.toArray(new String[0]);
+		return new ProcessBuilder(Arrays.asList(AbstractLocalDeployerSupport.windowsSupport(commands.toArray(new String[0]))));
 	}
 
 	private List<String> addDockerOptions(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
-										  Optional<Integer> appInstanceNumber) {
+			Optional<Integer> appInstanceNumber, LocalDeployerProperties localDeployerProperties,
+			Optional<DebugAddress> debugAddressOption) {
+
 		List<String> commands = new ArrayList<>();
 		commands.add("docker");
 		commands.add("run");
+
 		if (StringUtils.hasText(this.dockerNetwork)) {
 			commands.add("--network");
 			commands.add(this.dockerNetwork);
 		}
-		if (this.deleteContainerOnExit) {
+
+		if (this.deleteContainerOnExit && localDeployerProperties.getDocker().isDeleteContainerOnExit()) {
 			commands.add("--rm");
 		}
 
@@ -88,15 +106,27 @@ public class DockerCommandBuilder implements CommandBuilder {
 			commands.add(String.format("%s=%s", env, appInstanceEnv.get(env)));
 		}
 
+		debugAddressOption.ifPresent(debugAddress -> {
+			String debugCommand = debugAddress.getDebugCommand();
+			logger.debug("Deploying app with Debug Command = [{}]", debugCommand);
+
+			commands.add("-e");
+			commands.add("JAVA_TOOL_OPTIONS=" + debugCommand);
+			commands.add("-p");
+			commands.add(String.format("%s:%s", debugAddress.getPort(), debugAddress.getPort()));
+		});
+
 		setPort(commands, appInstanceEnv);
 
-		if(request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
-			if(appInstanceNumber.isPresent()) {
+		if (request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
+			if (appInstanceNumber.isPresent()) {
 				commands.add(String.format("--name=%s-%d", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY), appInstanceNumber.get()));
-			} else {
+			}
+			else {
 				commands.add(String.format("--name=%s", request.getDeploymentProperties().get(DOCKER_CONTAINER_NAME_KEY)));
 			}
-		} else {
+		}
+		else {
 			String group = request.getDeploymentProperties().get(AppDeployer.GROUP_PROPERTY_KEY);
 			if (StringUtils.hasText(group)) {
 				String deploymentId = String.format("%s.%s", group, request.getDefinition().getName());
@@ -122,14 +152,13 @@ public class DockerCommandBuilder implements CommandBuilder {
 
 		String port;
 
-		if(appInstanceEnv.containsKey(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)) {
+		if (appInstanceEnv.containsKey(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)) {
 			Map<String, String> properties = new HashMap<>();
 
 			try {
 				properties.putAll(OBJECT_MAPPER.readValue(
 						appInstanceEnv.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON),
-						new TypeReference<HashMap<String, String>>() {
-						}));
+						new TypeReference<HashMap<String, String>>() {}));
 			}
 			catch (IOException e) {
 				throw new IllegalArgumentException("Unable to determine server port from SPRING_APPLICATION_JSON");
@@ -141,7 +170,7 @@ public class DockerCommandBuilder implements CommandBuilder {
 			port = appInstanceEnv.get(LocalAppDeployer.SERVER_PORT_KEY);
 		}
 
-		if(StringUtils.hasText(port)) {
+		if (StringUtils.hasText(port)) {
 			commands.add("-p");
 			commands.add(String.format("%s:%s", port, port));
 		}

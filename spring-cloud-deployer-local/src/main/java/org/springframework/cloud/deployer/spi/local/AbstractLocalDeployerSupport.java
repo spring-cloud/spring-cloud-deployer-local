@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -46,7 +45,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.util.SocketUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -165,7 +163,6 @@ public abstract class AbstractLocalDeployerSupport {
 	protected ProcessBuilder buildProcessBuilder(AppDeploymentRequest request, Map<String, String> appInstanceEnv,
 			Optional<Integer> appInstanceNumber, String deploymentId) {
 		Assert.notNull(request, "AppDeploymentRequest must be set");
-		String[] commands;
 
 		Map<String, String> appPropertiesToUse = formatApplicationProperties(request, appInstanceEnv);
 		if (logger.isInfoEnabled()) {
@@ -173,48 +170,41 @@ public abstract class AbstractLocalDeployerSupport {
 					"downloaded from a remote host.", request.getResource());
 		}
 
-		if (request.getResource() instanceof DockerResource) {
-			appPropertiesToUse.put("deployerId", deploymentId);
-			commands = this.dockerCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
-		}
-		else {
-			commands = this.javaCommandBuilder.buildExecutionCommand(request, appPropertiesToUse, appInstanceNumber);
-		}
+		LocalDeployerProperties localDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
 
-		// tweak escaping double quotes needed for windows
-		if (LocalDeployerUtils.isWindows()) {
-			for (int i = 0; i < commands.length; i++) {
-				commands[i] = commands[i].replace("\"", "\\\"");
-			}
-		}
+		Optional<DebugAddress> debugAddressOption = DebugAddress.from(localDeployerProperties, appInstanceNumber.orElse(0));
 
-		ProcessBuilder builder = new ProcessBuilder(commands);
-
-		if (!(request.getResource() instanceof DockerResource)) {
-			builder.environment().putAll(appPropertiesToUse);
-		}
-
-		LocalDeployerProperties bindDeployerProperties = bindDeploymentProperties(request.getDeploymentProperties());
-
-		DebugAddress.from(bindDeployerProperties, appInstanceNumber.orElse(0)).ifPresent(debugAddress -> {
-			String debugCommand = debugAddress.getDebugCommand();
-			logger.debug("Deploying app with Debug Command = [{}]", debugCommand);
-
-			if (request.getResource() instanceof DockerResource) {
-				builder.command().add(2, "-e");
-				builder.command().add(3, "JAVA_TOOL_OPTIONS=" + debugCommand);
-				builder.command().add(4, "-p");
-				builder.command().add(5, String.format("%s:%s", debugAddress.getPort(), debugAddress.getPort()));
-			}
-			else {
-				builder.command().add(1, debugCommand);
-			}
-		});
+		ProcessBuilder builder = getCommandBuilder(request)
+				.buildExecutionCommand(request, appPropertiesToUse, deploymentId, appInstanceNumber,
+						localDeployerProperties, debugAddressOption);
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
 		logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
 				.map(entry -> entry.getKey() + " : " + entry.getValue()).collect(Collectors.joining(", "))));
 		return builder;
+	}
+
+	/**
+	 * Detects the Command builder by the type of the resource in the requests.
+	 * @param request deployment request containing information about the resource to be deployed.
+	 * @return Returns a command builder compatible with the type of the resource set in the request.
+	 */
+	protected CommandBuilder getCommandBuilder(AppDeploymentRequest request) {
+		return (request.getResource() instanceof DockerResource) ? this.dockerCommandBuilder : this.javaCommandBuilder;
+	}
+
+	/**
+	 * tweak escaping double quotes needed for windows
+	 * @param commands
+	 * @return
+	 */
+	public static String[] windowsSupport(String[] commands) {
+		if (LocalDeployerUtils.isWindows()) {
+			for (int i = 0; i < commands.length; i++) {
+				commands[i] = commands[i].replace("\"", "\\\"");
+			}
+		}
+		return commands;
 	}
 
 	/**
@@ -323,90 +313,6 @@ public abstract class AbstractLocalDeployerSupport {
 		}
 	}
 
-	public static class DebugAddress {
-		private static final Pattern HOSTNAME_PATTERN = Pattern.compile("^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
-		private static final Pattern IP_PATTERN = Pattern.compile("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$");
-		private static final Pattern PORT_PATTERN = Pattern.compile("^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$");
-
-		public final static Logger logger = LoggerFactory.getLogger(DebugAddress.class);
-
-		private final String host;
-		private final String port;
-		private final String address;
-		private final String suspend;
-
-		private DebugAddress(String host, int port, String suspend) {
-			this.host = host;
-			this.port = "" + port;
-			this.suspend = (StringUtils.hasText(suspend)) ? suspend.trim() : "y";
-			this.address = (StringUtils.hasText(host)) ? String.format("%s:%s", host, port) : this.port;
-		}
-
-		public String getHost() {
-			return host;
-		}
-
-		public String getPort() {
-			return port;
-		}
-
-		public String getSuspend() {
-			return suspend;
-		}
-
-		public String getAddress() {
-			return this.address;
-		}
-
-		public String getDebugCommand() {
-			return String.format("-agentlib:jdwp=transport=dt_socket,server=y,suspend=%s,address=%s",
-					this.suspend,
-					this.address);
-		}
-
-		public static Optional<DebugAddress> from(LocalDeployerProperties deployerProperties, int instanceNumber) {
-
-			if (!StringUtils.hasText(deployerProperties.getDebugAddress()) && deployerProperties.getDebugPort() == null) {
-				return Optional.empty();
-			}
-
-			String debugHost = null;
-			String debugPort = ("" + deployerProperties.getDebugPort()).trim();
-
-			if (StringUtils.hasText(deployerProperties.getDebugAddress())) {
-				String[] addressParts = deployerProperties.getDebugAddress().split(":");
-
-				if (addressParts.length == 1) { // JDK 8 only
-					debugPort = addressParts[0].trim();
-				}
-				else if (addressParts.length == 2) { // JDK 9+
-					debugHost = addressParts[0].trim();
-					debugPort = addressParts[1].trim();
-
-					if (!("*".equals(debugHost)
-							|| HOSTNAME_PATTERN.matcher(debugHost).matches()
-							|| IP_PATTERN.matcher(debugHost).matches())) {
-						logger.warn("Invalid debug Host: {}", deployerProperties.getDebugAddress());
-						return Optional.empty();
-					}
-				}
-				else {
-					logger.warn("Invalid debug address: {}", deployerProperties.getDebugAddress());
-					return Optional.empty();
-				}
-			}
-
-			if (!PORT_PATTERN.matcher(debugPort).matches()) {
-				logger.warn("Invalid debug port: {}", debugPort);
-				return Optional.empty();
-			}
-
-			int portToUse = Integer.parseInt(debugPort) + instanceNumber;
-
-			return Optional.of(new DebugAddress(debugHost, portToUse, deployerProperties.getDebugSuspend()));
-		}
-	}
-
 	protected boolean useSpringApplicationJson(AppDeploymentRequest request) {
 		return request.getDefinition().getProperties().containsKey(USE_SPRING_APPLICATION_JSON_KEY)
 				|| this.localDeployerProperties.isUseSpringApplicationJson();
@@ -420,16 +326,13 @@ public abstract class AbstractLocalDeployerSupport {
 
 		if (useDynamicPort) {
 			port = getRandomPort();
+			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
 		else if (commandLineArgPort != null) {
 			port = commandLineArgPort;
 		}
 		else if (request.getDefinition().getProperties().containsKey(LocalAppDeployer.SERVER_PORT_KEY)) {
 			port = Integer.parseInt(request.getDefinition().getProperties().get(LocalAppDeployer.SERVER_PORT_KEY));
-		}
-
-		if (useDynamicPort) {
-			appInstanceEnvVars.put(LocalAppDeployer.SERVER_PORT_KEY, String.valueOf(port));
 		}
 
 		return port;
@@ -488,16 +391,11 @@ public abstract class AbstractLocalDeployerSupport {
 	}
 
 	protected Integer isServerPortKeyPresentOnArgs(AppDeploymentRequest request) {
-		Integer result = null;
-
-		for (String argument : request.getCommandlineArguments()) {
-			if (argument.startsWith(SERVER_PORT_KEY_COMMAND_LINE_ARG)) {
-				result = Integer.parseInt(argument.replace(SERVER_PORT_KEY_COMMAND_LINE_ARG, "").trim());
-				break;
-			}
-		}
-
-		return result;
+		return request.getCommandlineArguments().stream()
+				.filter(argument -> argument.startsWith(SERVER_PORT_KEY_COMMAND_LINE_ARG))
+				.map(argument -> Integer.parseInt(argument.replace(SERVER_PORT_KEY_COMMAND_LINE_ARG, "").trim()))
+				.findFirst()
+				.orElse(null);
 	}
 
 	protected interface Instance {
