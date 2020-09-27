@@ -165,10 +165,14 @@ public class DockerCommandBuilder implements CommandBuilder {
 	private String getPort(Map<String, String> appInstanceEnv) {
 		if (appInstanceEnv.containsKey(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)) {
 			try {
-				new HashMap<>((OBJECT_MAPPER.readValue(
+				HashMap<String, String> flatProperties = new HashMap<>((OBJECT_MAPPER.readValue(
 						appInstanceEnv.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON),
-						new TypeReference<HashMap<String, String>>() {}))
-				).get(LocalAppDeployer.SERVER_PORT_KEY);
+						new TypeReference<HashMap<String, String>>() {})));
+
+				if (flatProperties.containsKey(LocalAppDeployer.SERVER_PORT_KEY)) {
+					return flatProperties.get(LocalAppDeployer.SERVER_PORT_KEY);
+				}
+				// fall back to appInstanceEnv.
 			}
 			catch (IOException e) {
 				throw new IllegalArgumentException("Unable to determine server port from SPRING_APPLICATION_JSON");
