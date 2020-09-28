@@ -48,7 +48,7 @@ public class JavaCommandBuilder implements CommandBuilder {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	private LocalDeployerProperties properties;
+	private final LocalDeployerProperties properties;
 
 	public JavaCommandBuilder(LocalDeployerProperties properties) {
 		this.properties = properties;

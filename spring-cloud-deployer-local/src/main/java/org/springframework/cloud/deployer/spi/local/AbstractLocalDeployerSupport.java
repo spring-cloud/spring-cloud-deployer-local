@@ -318,6 +318,13 @@ public abstract class AbstractLocalDeployerSupport {
 				|| this.localDeployerProperties.isUseSpringApplicationJson();
 	}
 
+	// TODO (tzolov): This method has a treacherous side affect! Apart from returning the computed Port it also modifies
+	//  the appInstanceEnvVars map! Later is used for down stream app deployment configuration.
+	//  As a consequence if you place the calcServerPort in wrong place (for example after the buildProcessBuilder(..)
+	//  call then the Port configuration won't be known to the command builder).
+	//  Proper solution is to (1) either make the method void and rename it to calcAndSetServerPort or (2) make the
+	//  method return the mutated appInstanceEnvVars. Sync with the SCT team because the method is used by the
+	//  LocalTaskLauncher (e.g. prod. grade)
 	protected int calcServerPort(AppDeploymentRequest request, boolean useDynamicPort,
 			Map<String, String> appInstanceEnvVars) {
 

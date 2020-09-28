@@ -23,7 +23,6 @@ import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
-import java.net.Inet4Address;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,7 +40,6 @@ import javax.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppScaleRequest;
@@ -291,7 +289,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 		// looks like for now we can't remove these env style formats as i.e.
 		// DeployerIntegrationTestProperties in tests really assume 'INSTANCE_INDEX' and
 		// this might be indication that we can't yet fully remove those.
-		String guid = String.format("%s-%s", deploymentId, index);
+		String guid = toGuid(deploymentId, index);
 		if (useSpringApplicationJson(request)) {
 			appInstanceEnv.put("instance.index", Integer.toString(index));
 			appInstanceEnv.put("spring.cloud.stream.instanceIndex", Integer.toString(index));
@@ -350,6 +348,10 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 						deploymentId, state, expectedState));
 	}
 
+	private static String toGuid(String deploymentId, int appIndex) {
+		return String.format("%s-%s", deploymentId, appIndex);
+	}
+
 	private static class AppInstance implements Instance, AppInstanceStatus {
 
 		private final String deploymentId;
@@ -375,7 +377,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 			this.port = port;
 			this.baseUrl = baseUrl;
 			this.attributes.put("port", Integer.toString(port));
-			this.attributes.put("guid", deploymentId);
+			this.attributes.put("guid", toGuid(deploymentId, instanceNumber));
 			this.attributes.put("url", baseUrl.toString());
 			this.startupProbeExecutor = HttpProbeExecutor.from(baseUrl, startupProbe);
 			this.healthProbeExecutor = HttpProbeExecutor.from(baseUrl, healthProbe);
