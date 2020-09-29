@@ -56,11 +56,9 @@ public class DockerCommandBuilder implements CommandBuilder {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	private final String dockerNetwork;
-	private final boolean deleteContainerOnExit;
 
-	public DockerCommandBuilder(String dockerNetwork, boolean deleteContainerOnExit) {
+	public DockerCommandBuilder(String dockerNetwork) {
 		this.dockerNetwork = dockerNetwork;
-		this.deleteContainerOnExit = deleteContainerOnExit;
 	}
 
 	@Override
@@ -104,7 +102,7 @@ public class DockerCommandBuilder implements CommandBuilder {
 			commands.add(this.dockerNetwork);
 		}
 
-		if (this.deleteContainerOnExit && localDeployerProperties.getDocker().isDeleteContainerOnExit()) {
+		if (localDeployerProperties.getDocker().isDeleteContainerOnExit()) {
 			commands.add("--rm");
 		}
 

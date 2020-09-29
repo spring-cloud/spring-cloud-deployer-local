@@ -46,7 +46,7 @@ public class DockerCommandBuilderTests {
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
 
-		ProcessBuilder builder = new DockerCommandBuilder(null, true)
+		ProcessBuilder builder = new DockerCommandBuilder(null)
 				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
 						new LocalDeployerProperties(), Optional.empty());
 		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--rm", "--name=gogo-1",
@@ -59,7 +59,7 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", true)
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default")
 				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
 						new LocalDeployerProperties(), Optional.empty());
 		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
@@ -72,9 +72,13 @@ public class DockerCommandBuilderTests {
 		Resource resource = new DockerResource("foo/bar");
 		Map<String, String> deploymentProperties = Collections.singletonMap(DockerCommandBuilder.DOCKER_CONTAINER_NAME_KEY, "gogo");
 		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
-		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", false)
+
+		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
+		localDeployerProperties.getDocker().setDeleteContainerOnExit(false);
+
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default")
 				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
-						new LocalDeployerProperties(), Optional.empty());
+						localDeployerProperties, Optional.empty());
 		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
 				"--name=gogo-1", "foo/bar"));
 		assertThat(builder.command()).doesNotContain("--rm");
@@ -90,7 +94,7 @@ public class DockerCommandBuilderTests {
 		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
 		localDeployerProperties.getDocker().setDeleteContainerOnExit(false);
 
-		ProcessBuilder builder = new DockerCommandBuilder("scdf_default", true)
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default")
 				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
 						localDeployerProperties, Optional.empty());
 		assertThat(builder.command()).containsAnyElementsOf(Arrays.asList("docker", "run", "--network", "scdf_default",
