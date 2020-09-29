@@ -102,8 +102,7 @@ public abstract class AbstractLocalDeployerSupport {
 		Assert.notNull(localDeployerProperties, "LocalDeployerProperties must not be null");
 		this.localDeployerProperties = localDeployerProperties;
 		this.javaCommandBuilder = new JavaCommandBuilder(localDeployerProperties);
-		this.dockerCommandBuilder = new DockerCommandBuilder(localDeployerProperties.getDocker().getNetwork(),
-				localDeployerProperties.getDocker().isDeleteContainerOnExit());
+		this.dockerCommandBuilder = new DockerCommandBuilder(localDeployerProperties.getDocker().getNetwork());
 		this.restTemplate = buildRestTemplate(localDeployerProperties);
 	}
 
