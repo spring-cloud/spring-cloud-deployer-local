@@ -24,8 +24,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 /**
- * Helper for parsing the Debugging address form the legacy debug-port or the new debug-address properties.
- * The debug-address property has precedence over debug-port and offers support for jdk 8 and jdk 9+.
+ * Helper for parsing the Debugging address for both the legacy debug-port and the new debug-address properties.
+ * The debug-port supports only Java 8 and is deprecated. The debug-address can be used for jdk 8 as well as
+ * jdk 9 and newer.
+ * When set the debug-address property has precedence over debug-port.
  *
  * @author Christian Tzolov
  */
@@ -62,12 +64,6 @@ public class DebugAddress {
 
 	public String getAddress() {
 		return this.address;
-	}
-
-	public String getDebugCommand() {
-		return String.format("-agentlib:jdwp=transport=dt_socket,server=y,suspend=%s,address=%s",
-				this.suspend,
-				this.address);
 	}
 
 	public static Optional<DebugAddress> from(LocalDeployerProperties deployerProperties, int instanceNumber) {

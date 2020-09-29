@@ -36,7 +36,7 @@ public class DebugAddressTests {
 
 	@Test
 	public void testDebugPort() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugPort(20075);
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 0);
@@ -48,7 +48,7 @@ public class DebugAddressTests {
 
 	@Test
 	public void testDebugPortWithInstance() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugPort(20075);
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);
@@ -60,7 +60,7 @@ public class DebugAddressTests {
 
 	@Test
 	public void testDebugPortInvalidValue() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugPort(-666);
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 0);
@@ -69,7 +69,7 @@ public class DebugAddressTests {
 
 	@Test
 	public void testDebugAddressPortOnly() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugAddress("20075");
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);
@@ -77,12 +77,11 @@ public class DebugAddressTests {
 		assertThat(debugAddress.get().getHost()).isNull();
 		assertThat(debugAddress.get().getPort()).isEqualTo("20175");
 		assertThat(debugAddress.get().getAddress()).isEqualTo("20175");
-		assertThat(debugAddress.get().getDebugCommand()).isEqualTo("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=20175");
 	}
 
 	@Test
 	public void testDebugAddressWildcardHost() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugAddress("*:20075");
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);
@@ -90,13 +89,12 @@ public class DebugAddressTests {
 		assertThat(debugAddress.get().getHost()).isEqualTo("*");
 		assertThat(debugAddress.get().getPort()).isEqualTo("20175");
 		assertThat(debugAddress.get().getAddress()).isEqualTo("*:20175");
-		assertThat(debugAddress.get().getDebugCommand()).isEqualTo("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:20175");
 	}
 
 
 	@Test
 	public void testDebugAddressWithIP() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugAddress("127.0.0.1:20075");
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);
@@ -104,12 +102,11 @@ public class DebugAddressTests {
 		assertThat(debugAddress.get().getHost()).isEqualTo("127.0.0.1");
 		assertThat(debugAddress.get().getPort()).isEqualTo("20175");
 		assertThat(debugAddress.get().getAddress()).isEqualTo("127.0.0.1:20175");
-		assertThat(debugAddress.get().getDebugCommand()).isEqualTo("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=127.0.0.1:20175");
 	}
 
 	@Test
 	public void testDebugAddressWithHostname() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugAddress("localhost:20075");
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);
@@ -117,12 +114,11 @@ public class DebugAddressTests {
 		assertThat(debugAddress.get().getHost()).isEqualTo("localhost");
 		assertThat(debugAddress.get().getPort()).isEqualTo("20175");
 		assertThat(debugAddress.get().getAddress()).isEqualTo("localhost:20175");
-		assertThat(debugAddress.get().getDebugCommand()).isEqualTo("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:20175");
 	}
 
 	@Test
 	public void testDebugAddressWithInvalidIP() {
-		LocalDeployerProperties properties =new LocalDeployerProperties();
+		LocalDeployerProperties properties = new LocalDeployerProperties();
 		properties.setDebugAddress("127.0.:20075");
 		Optional<DebugAddress> debugAddress =
 				DebugAddress.from(properties, 100);

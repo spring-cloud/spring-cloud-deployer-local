@@ -115,7 +115,7 @@ public class DockerCommandBuilder implements CommandBuilder {
 		}
 
 		debugAddressOption.ifPresent(debugAddress -> {
-			String debugCommand = debugAddress.getDebugCommand();
+			String debugCommand = getJdwpOptions(debugAddress.getSuspend(), debugAddress.getAddress());
 			logger.debug("Deploying app with Debug Command = [{}]", debugCommand);
 
 			commands.add("-e");
