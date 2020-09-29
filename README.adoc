@@ -24,3 +24,8 @@ Or build project and run tests:
 ```
 ./mvnw clean package
 ```
+
+Run the integration tests in Docker mode:
+```
+./mvnw clean install -Dspring-cloud-deployer-spi-test-use-docker=true -Dspring.cloud.deployer.local.hostname=localhost
+```

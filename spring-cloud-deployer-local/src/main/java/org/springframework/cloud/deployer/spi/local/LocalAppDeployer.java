@@ -312,7 +312,9 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 				.inheritIO();
 		builder.directory(workDir.toFile());
 
-		URL baseUrl = getCommandBuilder(request).getBaseUrl(deploymentId, index, port);
+		URL baseUrl = (StringUtils.hasText(localDeployerPropertiesToUse.getHostname())) ?
+				new URL("http", localDeployerPropertiesToUse.getHostname(), port, "")
+				: getCommandBuilder(request).getBaseUrl(deploymentId, index, port);
 
 		AppInstance instance = new AppInstance(deploymentId, index, port, baseUrl,
 				localDeployerPropertiesToUse.getStartupProbe(), localDeployerPropertiesToUse.getHealthProbe());
@@ -445,7 +447,7 @@ public class LocalAppDeployer extends AbstractLocalDeployerSupport implements Ap
 
 		public String getStdOut() {
 			try {
-			return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stdout)));
+				return FileCopyUtils.copyToString(new InputStreamReader(new FileInputStream(this.stdout)));
 			}
 			catch (IOException e) {
 				return "Log retrieval returned " + e.getMessage();

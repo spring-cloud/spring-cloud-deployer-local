@@ -87,8 +87,7 @@ public class LocalDeployerProperties {
 
 	private static final String JAVA_COMMAND = LocalDeployerUtils.isWindows() ? "java.exe" : "java";
 
-	// looks like some windows systems uses 'Path' but processbuilder give it as
-	// 'PATH'
+	// looks like some windows systems uses 'Path' but process builder give it as 'PATH'
 	private static final String[] ENV_VARS_TO_INHERIT_DEFAULTS_WIN = { "TMP", "TEMP", "PATH", "Path",
 			AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON };
 
@@ -148,7 +147,7 @@ public class LocalDeployerProperties {
 
 	/**
 	 * Set remote debugging port for JDK 8 runtimes.
-	 * Deprecated: Please use the {@link #debugAddress} instead!
+	 * @deprecated Use the {@link #debugAddress} instead!
 	 */
 	private Integer debugPort;
 
@@ -171,6 +170,12 @@ public class LocalDeployerProperties {
 
 	private final Docker docker = new Docker();
 
+	/**
+	 * (optional) hostname to use when computing the URL of the deployed application.
+	 * By default the {@link CommandBuilder} implementations decide how to build the hostname.
+	 */
+	private String hostname;
+
 	public LocalDeployerProperties() {
 	}
 
@@ -181,6 +186,7 @@ public class LocalDeployerProperties {
 		this.deleteFilesOnExit = from.isDeleteFilesOnExit();
 		this.docker.network = from.getDocker().getNetwork();
 		this.docker.deleteContainerOnExit = from.getDocker().isDeleteContainerOnExit();
+		this.docker.portRange = from.getDocker().getPortRange();
 		this.envVarsToInherit = new String[from.getEnvVarsToInherit().length];
 		System.arraycopy(from.getEnvVarsToInherit(), 0, this.envVarsToInherit, 0, from.getEnvVarsToInherit().length);
 		this.inheritLogging = from.isInheritLogging();
@@ -192,6 +198,7 @@ public class LocalDeployerProperties {
 		this.shutdownTimeout = from.getShutdownTimeout();
 		this.useSpringApplicationJson = from.isUseSpringApplicationJson();
 		this.workingDirectoriesRoot = Paths.get(from.getWorkingDirectoriesRoot().toUri());
+		this.hostname =from.getHostname();
 	}
 
 	public static class PortRange {
@@ -323,6 +330,14 @@ public class LocalDeployerProperties {
 
 	public Docker getDocker() {
 		return docker;
+	}
+
+	public String getHostname() {
+		return hostname;
+	}
+
+	public void setHostname(String hostname) {
+		this.hostname = hostname;
 	}
 
 	public Integer getDebugPort() {
