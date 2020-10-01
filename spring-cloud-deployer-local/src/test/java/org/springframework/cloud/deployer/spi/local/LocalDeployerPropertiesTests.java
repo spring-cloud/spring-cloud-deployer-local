@@ -42,7 +42,7 @@ public class LocalDeployerPropertiesTests {
 				.run((context) -> {
 					LocalDeployerProperties properties = context.getBean(LocalDeployerProperties.class);
 					assertThat(properties.getDebugPort()).isNull();
-					assertThat(properties.getDebugSuspend()).isNull();
+					assertThat(properties.getDebugSuspend()).isEqualTo(LocalDeployerProperties.DebugSuspendType.y);
 					assertThat(properties.isDeleteFilesOnExit()).isTrue();
 					assertThat(properties.getEnvVarsToInherit()).containsExactly("TMP", "LANG", "LANGUAGE", "LC_.*",
 							"PATH", "SPRING_APPLICATION_JSON");
