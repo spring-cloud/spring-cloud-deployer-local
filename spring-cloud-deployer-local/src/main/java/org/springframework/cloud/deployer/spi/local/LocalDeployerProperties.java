@@ -281,6 +281,16 @@ public class LocalDeployerProperties {
 		 */
 		private PortRange portRange = new PortRange();
 
+		/**
+		 * Set port mappings for container
+		 */
+		private String portMappings;
+
+		/**
+		 * Set volume mappings
+		 */
+		private String volumeMounts;
+
 		public PortRange getPortRange() {
 			return portRange;
 		}
@@ -299,6 +309,22 @@ public class LocalDeployerProperties {
 
 		public void setDeleteContainerOnExit(boolean deleteContainerOnExit) {
 			this.deleteContainerOnExit = deleteContainerOnExit;
+		}
+
+		public String getPortMappings() {
+			return portMappings;
+		}
+
+		public void setPortMappings(String portMappings) {
+			this.portMappings = portMappings;
+		}
+
+		public String getVolumeMounts() {
+			return volumeMounts;
+		}
+
+		public void setVolumeMounts(String volumeMounts) {
+			this.volumeMounts = volumeMounts;
 		}
 
 		@Override

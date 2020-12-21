@@ -81,6 +81,8 @@ public class LocalDeployerPropertiesTests {
 					map.put("spring.cloud.deployer.local.shutdown-timeout", 3456);
 					map.put("spring.cloud.deployer.local.use-spring-application-json", false);
 					map.put("spring.cloud.deployer.local.docker.network", "spring-cloud-dataflow-server_default");
+					map.put("spring.cloud.deployer.local.docker.port-mappings", "9091:5678");
+					map.put("spring.cloud.deployer.local.docker.volume-mounts", "/tmp:/opt");
 					map.put("spring.cloud.deployer.local.startup-probe.path", "/path1");
 					map.put("spring.cloud.deployer.local.health-probe.path", "/path2");
 
@@ -104,6 +106,8 @@ public class LocalDeployerPropertiesTests {
 					assertThat(properties.getShutdownTimeout()).isEqualTo(3456);
 					assertThat(properties.isUseSpringApplicationJson()).isFalse();
 					assertThat(properties.getDocker().getNetwork()).isEqualTo("spring-cloud-dataflow-server_default");
+					assertThat(properties.getDocker().getPortMappings()).isEqualTo("9091:5678");
+					assertThat(properties.getDocker().getVolumeMounts()).isEqualTo("/tmp:/opt");
 					assertThat(properties.getStartupProbe().getPath()).isEqualTo("/path1");
 					assertThat(properties.getHealthProbe().getPath()).isEqualTo("/path2");
 				});
@@ -128,6 +132,8 @@ public class LocalDeployerPropertiesTests {
 					map.put("spring.cloud.deployer.local.shutdownTimeout", 3456);
 					map.put("spring.cloud.deployer.local.useSpringApplicationJson", false);
 					map.put("spring.cloud.deployer.local.docker.network", "spring-cloud-dataflow-server_default");
+					map.put("spring.cloud.deployer.local.docker.portMappings", "9091:5678");
+					map.put("spring.cloud.deployer.local.docker.volumeMounts", "/tmp:/opt");
 
 					context.getEnvironment().getPropertySources().addLast(new SystemEnvironmentPropertySource(
 							StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, map));
@@ -149,6 +155,8 @@ public class LocalDeployerPropertiesTests {
 					assertThat(properties.getShutdownTimeout()).isEqualTo(3456);
 					assertThat(properties.isUseSpringApplicationJson()).isFalse();
 					assertThat(properties.getDocker().getNetwork()).isEqualTo("spring-cloud-dataflow-server_default");
+					assertThat(properties.getDocker().getPortMappings()).isEqualTo("9091:5678");
+					assertThat(properties.getDocker().getVolumeMounts()).isEqualTo("/tmp:/opt");
 				});
 	}
 
