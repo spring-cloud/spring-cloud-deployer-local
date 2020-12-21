@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -129,6 +132,9 @@ public class DockerCommandBuilder implements CommandBuilder {
 			commands.add(String.format("%s:%s", port, port));
 		}
 
+		applyPortMappings(commands,localDeployerProperties);
+		applyVolumeMountings(commands,localDeployerProperties);
+
 
 		if (request.getDeploymentProperties().containsKey(DOCKER_CONTAINER_NAME_KEY)) {
 			if (appInstanceNumber.isPresent()) {
@@ -160,6 +166,26 @@ public class DockerCommandBuilder implements CommandBuilder {
 		return commands;
 	}
 
+	private void applyVolumeMountings(List<String> commands, LocalDeployerProperties localDeployerProperties) {
+		String volumeMounts = localDeployerProperties.getDocker().getVolumeMounts();
+		if (StringUtils.hasText(volumeMounts)) {
+			for (String v : parseMapping(volumeMounts)) {
+				commands.add("-v");
+				commands.add(v);
+			}
+		}
+	}
+
+	private void applyPortMappings(List<String> commands, LocalDeployerProperties properties) {
+		String portMappings = properties.getDocker().getPortMappings();
+		if (StringUtils.hasText(portMappings)) {
+			for (String p : parseMapping(portMappings)) {
+				commands.add("-p");
+				commands.add(p);
+			}
+		}
+	}
+
 	private String getPort(Map<String, String> appInstanceEnv) {
 		if (appInstanceEnv.containsKey(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)) {
 			try {
@@ -177,5 +203,11 @@ public class DockerCommandBuilder implements CommandBuilder {
 			}
 		}
 		return appInstanceEnv.get(LocalAppDeployer.SERVER_PORT_KEY);
+	}
+
+	private List<String> parseMapping(String map) {
+		Supplier<Stream<String>> stream = () -> Arrays.stream(map.split(","));
+		stream.get().filter(s -> !s.contains(":")).forEach(s -> logger.warn("incomplete mapping {} will be ignored", s));
+		return stream.get().filter(s -> s.contains(":")).collect(Collectors.toList());
 	}
 }

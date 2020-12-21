@@ -119,4 +119,45 @@ public class DockerCommandBuilderTests {
 		assertThat(builder.command()).contains("-e", SAJ);
 	}
 
+	@Test
+	public void  testContainerPortMappings(){
+		AppDefinition appDefinition = new AppDefinition("foo", null);
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = Collections.emptyMap();
+		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
+
+		String goodMapping1 = "9090:9090";
+		String goodMapping2 = "6090:7090";
+		String incompleteMapping = "8888";
+		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
+		localDeployerProperties.getDocker().setPortMappings(goodMapping1 + "," + goodMapping2 + "," + incompleteMapping);
+
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default")
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						localDeployerProperties, Optional.empty());
+
+		assertThat(builder.command()).contains(goodMapping1, goodMapping2);
+		assertThat(builder.command()).doesNotContain(incompleteMapping);
+	}
+
+	@Test
+	public void  testContainerVolumeMount(){
+		AppDefinition appDefinition = new AppDefinition("foo", null);
+		Resource resource = new DockerResource("foo/bar");
+		Map<String, String> deploymentProperties = Collections.emptyMap();
+		AppDeploymentRequest request = new AppDeploymentRequest(appDefinition, resource, deploymentProperties);
+
+		String goodMapping1 = "/tmp:/tmp";
+		String goodMapping2 = "/opt:/opt";
+		String incompleteMapping = "/dev/null";
+		LocalDeployerProperties localDeployerProperties = new LocalDeployerProperties();
+		localDeployerProperties.getDocker().setVolumeMounts(goodMapping1 + "," + goodMapping2 + "," + incompleteMapping);
+
+		ProcessBuilder builder = new DockerCommandBuilder("scdf_default")
+				.buildExecutionCommand(request, new HashMap<>(), "deployerId", Optional.of(1),
+						localDeployerProperties, Optional.empty());
+
+		assertThat(builder.command()).contains(goodMapping1, goodMapping2);
+		assertThat(builder.command()).doesNotContain(incompleteMapping);
+	}
 }
