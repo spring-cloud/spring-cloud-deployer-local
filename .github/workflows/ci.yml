@@ -1,15 +1,15 @@
-name: Java CI - master
+name: CI
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - main
     paths-ignore:
       - '.github/**'
   pull_request:
     branches:
-      - master
+      - main
 
 jobs:
   build:
