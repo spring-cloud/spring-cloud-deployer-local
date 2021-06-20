@@ -1,11 +1,11 @@
 /*
- * Copyright 2015 the original author or authors.
+ * Copyright 2015-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * https://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.cloud.deployer.spi.local;
 
 import java.io.File;
@@ -37,7 +38,6 @@ import org.springframework.core.io.UrlResource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.cloud.deployer.spi.local.LocalDeployerProperties.PREFIX;
 
 public class JavaExecutionCommandBuilderTests {
 
@@ -72,7 +72,7 @@ public class JavaExecutionCommandBuilderTests {
 
 	@Test
 	public void testJavaMemoryOption() {
-		deploymentProperties.put(PREFIX + ".javaOpts", "-Xmx1024m");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Xmx1024m");
 		commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
 		assertThat(args).hasSize(1);
 		assertThat(args.get(0)).isEqualTo("-Xmx1024m");
@@ -80,7 +80,7 @@ public class JavaExecutionCommandBuilderTests {
 
 	@Test
 	public void testJavaMemoryOptionWithKebabCase() {
-		deploymentProperties.put(PREFIX + ".java-opts", "-Xmx1024m");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".java-opts", "-Xmx1024m");
 		commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
 		assertThat(args).hasSize(1);
 		assertThat(args.get(0)).isEqualTo("-Xmx1024m");
@@ -89,7 +89,7 @@ public class JavaExecutionCommandBuilderTests {
 	@Test
 	public void testJavaCmdOption() throws Exception {
 		Map<String, String> properties = new HashMap<>();
-		properties.put(PREFIX + ".javaCmd", "/test/java");
+		properties.put(LocalDeployerProperties.PREFIX + ".javaCmd", "/test/java");
 		Resource resource = mock(Resource.class);
 		when(resource.getFile()).thenReturn(new File("/"));
 		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(mock(AppDefinition.class), resource, properties);
@@ -101,7 +101,7 @@ public class JavaExecutionCommandBuilderTests {
 	@Test
 	public void testJavaCmdOptionWithKebabCase() throws Exception {
 		Map<String, String> properties = new HashMap<>();
-		properties.put(PREFIX + ".java-cmd", "/test/java");
+		properties.put(LocalDeployerProperties.PREFIX + ".java-cmd", "/test/java");
 		Resource resource = mock(Resource.class);
 		when(resource.getFile()).thenReturn(new File("/"));
 		AppDeploymentRequest appDeploymentRequest = new AppDeploymentRequest(mock(AppDefinition.class), resource, properties);
@@ -113,7 +113,7 @@ public class JavaExecutionCommandBuilderTests {
 	@Test
 	public void testOverrideMemoryOptions() {
 		deploymentProperties.put(AppDeployer.MEMORY_PROPERTY_KEY, "1024m");
-		deploymentProperties.put(PREFIX + ".javaOpts", "-Xmx2048m");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Xmx2048m");
 		commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
 		assertThat(args).hasSize(1);
 		assertThat(args.get(0)).isEqualTo("-Xmx2048m");
@@ -122,7 +122,7 @@ public class JavaExecutionCommandBuilderTests {
 	@Test
 	public void testDirectMemoryOptionsWithOtherOptions() {
 		deploymentProperties.put(AppDeployer.MEMORY_PROPERTY_KEY, "1024m");
-		deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Dtest=foo");
 		commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
 		assertThat(args).hasSize(2);
 		assertThat(args.get(0)).isEqualTo("-Xmx1024m");
@@ -131,7 +131,7 @@ public class JavaExecutionCommandBuilderTests {
 
 	@Test
 	public void testMultipleOptions() {
-		deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
 		commandBuilder.addJavaOptions(args, deploymentProperties, localDeployerProperties);
 		assertThat(args).hasSize(2);
 		assertThat(args.get(0)).isEqualTo("-Dtest=foo");
@@ -150,7 +150,7 @@ public class JavaExecutionCommandBuilderTests {
 	@Test
 	public void testJarExecution() {
 		AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
-		deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
+		deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
 		AppDeploymentRequest appDeploymentRequest =
 				new AppDeploymentRequest(definition, testResource(), deploymentProperties);
 		commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
@@ -163,7 +163,7 @@ public class JavaExecutionCommandBuilderTests {
 	public void testBadResourceExecution() {
 		Assertions.assertThrows(IllegalStateException.class, () -> {
 			AppDefinition definition = new AppDefinition("randomApp", new HashMap<>());
-			deploymentProperties.put(PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
+			deploymentProperties.put(LocalDeployerProperties.PREFIX + ".javaOpts", "-Dtest=foo -Dbar=baz");
 			AppDeploymentRequest appDeploymentRequest =
 					new AppDeploymentRequest(definition, new UrlResource("https://spring.io"), deploymentProperties);
 			commandBuilder.addJavaExecutionOptions(args, appDeploymentRequest);
