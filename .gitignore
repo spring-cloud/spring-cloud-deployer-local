@@ -35,3 +35,11 @@ spring-*/src/main/java/META-INF/MANIFEST.MF
 
 # GitHub actions
 .m2
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
