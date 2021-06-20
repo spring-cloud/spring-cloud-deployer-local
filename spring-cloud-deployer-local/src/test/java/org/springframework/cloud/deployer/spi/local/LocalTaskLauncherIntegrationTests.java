@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2020 the original author or authors.
+ * Copyright 2016-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,26 +29,23 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.OutputCaptureRule;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalTaskLauncherIntegrationTests.Config;
 import org.springframework.cloud.deployer.spi.task.LaunchState;
 import org.springframework.cloud.deployer.spi.task.TaskLauncher;
-import org.springframework.cloud.deployer.spi.task.TaskStatus;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
-import org.springframework.cloud.deployer.spi.test.AbstractTaskLauncherIntegrationTests;
-import org.springframework.cloud.deployer.spi.test.EventuallyMatcher;
+import org.springframework.cloud.deployer.spi.test.AbstractTaskLauncherIntegrationJUnit5Tests;
 import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,12 +53,8 @@ import org.springframework.core.io.Resource;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.util.SocketUtils;
 
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for {@link LocalTaskLauncher}.
@@ -78,10 +72,11 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
-public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherIntegrationTests {
+@ExtendWith(OutputCaptureExtension.class)
+public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherIntegrationJUnit5Tests {
 
-	@Rule
-	public OutputCaptureRule outputCapture = new OutputCaptureRule();
+	// @Rule
+	// public OutputCaptureRule outputCapture = new OutputCaptureRule();
 
 	@Autowired
 	private TaskLauncher taskLauncher;
@@ -109,7 +104,7 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 			// tweak random dir name on win to be shorter
 			String uuid = UUID.randomUUID().toString();
 			long l = ByteBuffer.wrap(uuid.toString().getBytes()).getLong();
-			return name.getMethodName() + Long.toString(l, Character.MAX_RADIX);
+			return testName + Long.toString(l, Character.MAX_RADIX);
 		}
 		else {
 			return super.randomName();
@@ -117,22 +112,22 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 	}
 
 	@Test
-	public void testPassingServerPortViaCommandLineArgs(){
-		Map<String, String> appProperties = new HashMap();
+	public void testPassingServerPortViaCommandLineArgs(CapturedOutput output){
+		Map<String, String> appProperties = new HashMap<>();
 		appProperties.put("killDelay", "0");
 		appProperties.put("exitCode", "0");
 
 		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
 
 		basicLaunchAndValidation(definition, null);
-		assertTrue(this.outputCapture.toString().contains("Logs will be in"));
+		assertThat(output).contains("Logs will be in");
 	}
 
 
 	@Test
-	public void testInheritLoggingAndWorkDir() throws IOException {
+	public void testInheritLoggingAndWorkDir(CapturedOutput output) throws IOException {
 
-		Map<String, String> appProperties = new HashMap();
+		Map<String, String> appProperties = new HashMap<>();
 		appProperties.put("killDelay", "0");
 		appProperties.put("exitCode", "0");
 
@@ -153,12 +148,12 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		}
 
 		basicLaunchAndValidation(definition, deploymentProperties);
-		assertTrue(this.outputCapture.toString().contains("Logs will be inherited."));
+		assertThat(output).contains("Logs will be inherited.");
 
 		List<Path> afterDirs = Files.walk(customWorkDirRoot, 1)
 				.filter(path -> Files.isDirectory(path))
 				.collect(Collectors.toList());
-		assertThat("Additional working directory not created", afterDirs.size(), is(beforeDirs.size()+1));
+		assertThat(afterDirs).as("Additional working directory not created").hasSize(beforeDirs.size() + 1);
 
 		// clean up if test passed
 		FileSystemUtils.deleteRecursively(customWorkDirRoot);
@@ -177,10 +172,14 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 
 		Timeout timeout = deploymentTimeout();
 
-		assertThat(launchId1, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId1).getState()).isEqualTo(LaunchState.complete);
+        });
+
 		String logContent = taskLauncher().getLog(launchId1);
-		assertThat(logContent, containsString("Starting DeployerIntegrationTestApplication"));
+		assertThat(logContent).contains("Starting DeployerIntegrationTestApplication");
 	}
 
 	@Test
@@ -196,36 +195,54 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 
 		Timeout timeout = deploymentTimeout();
 
-		assertThat(launchId1, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId1).getState()).isEqualTo(LaunchState.complete);
+        });
 
 		String launchId2 = taskLauncher().launch(request);
 
-		assertThat(launchId2, not(is(launchId1)));
+		assertThat(launchId2).isNotEqualTo(launchId1);
 
 		timeout = deploymentTimeout();
 
-		assertThat(launchId2, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId2).getState()).isEqualTo(LaunchState.complete);
+        });
 
-		assertThat(launchId1, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId1).getState()).isEqualTo(LaunchState.unknown);
+        });
 
 		String launchId3 = taskLauncher().launch(request);
 
-		assertThat(launchId3, not(is(launchId1)));
-		assertThat(launchId3, not(is(launchId2)));
+		assertThat(launchId3).isNotEqualTo(launchId1);
+		assertThat(launchId3).isNotEqualTo(launchId2);
 
 		timeout = deploymentTimeout();
 
-		assertThat(launchId3, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId3).getState()).isEqualTo(LaunchState.complete);
+        });
 
-		assertThat(launchId1, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId1).getState()).isEqualTo(LaunchState.unknown);
+        });
 
-		assertThat(launchId2, eventually(hasStatusThat(
-				Matchers.<TaskStatus>hasProperty("state", Matchers.is(LaunchState.unknown))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId2).getState()).isEqualTo(LaunchState.unknown);
+        });
 
 		taskLauncher().destroy(definition.getName());
 	}
@@ -241,13 +258,26 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		this.log.info("Launching {}...", request.getDefinition().getName());
 
 		String launchId = this.taskLauncher().launch(request);
-		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(1)));
 		Timeout timeout = this.deploymentTimeout();
+		await().pollInterval(Duration.ofMillis(1))
+                .atMost(Duration.ofSeconds(30))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher.getRunningTaskExecutionCount()).isEqualTo(1);
+        });
 
-		Assert.assertThat(launchId, EventuallyMatcher.eventually(this.hasStatusThat(Matchers.hasProperty("state", Matchers.is(LaunchState.complete))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher().status(launchId).getState()).isEqualTo(LaunchState.complete);
+        });
 
 		this.taskLauncher().destroy(definition.getName());
-		assertThat(taskLauncher.getRunningTaskExecutionCount(), eventually(is(0)));
+
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+                .atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+                .untilAsserted(() -> {
+			assertThat(taskLauncher.getRunningTaskExecutionCount()).isEqualTo(0);
+        });
 	}
 
 	@Configuration

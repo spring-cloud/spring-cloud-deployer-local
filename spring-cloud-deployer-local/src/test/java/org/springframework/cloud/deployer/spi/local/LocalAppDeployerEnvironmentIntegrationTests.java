@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,10 +37,11 @@ import org.springframework.cloud.deployer.resource.docker.DockerResource;
 import org.springframework.cloud.deployer.spi.app.AppDeployer;
 import org.springframework.cloud.deployer.spi.app.AppInstanceStatus;
 import org.springframework.cloud.deployer.spi.app.AppStatus;
+import org.springframework.cloud.deployer.spi.app.DeploymentState;
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
 import org.springframework.cloud.deployer.spi.local.LocalAppDeployerEnvironmentIntegrationTests.Config;
-import org.springframework.cloud.deployer.spi.test.AbstractAppDeployerIntegrationTests;
+import org.springframework.cloud.deployer.spi.test.AbstractAppDeployerIntegrationJUnit5Tests;
 import org.springframework.cloud.deployer.spi.test.AbstractIntegrationTests;
 import org.springframework.cloud.deployer.spi.test.Timeout;
 import org.springframework.context.annotation.Bean;
@@ -48,17 +49,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.web.client.RestTemplate;
 
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.springframework.cloud.deployer.spi.app.DeploymentState.deployed;
-import static org.springframework.cloud.deployer.spi.app.DeploymentState.unknown;
-import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.eventually;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for {@link LocalAppDeployer} not using SAJ.
@@ -76,7 +68,7 @@ import static org.springframework.cloud.deployer.spi.test.EventuallyMatcher.even
 @SpringBootTest(classes = { Config.class, AbstractIntegrationTests.Config.class }, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot",
 		"spring.cloud.deployer.local.use-spring-application-json=false" })
-public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDeployerIntegrationTests {
+public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDeployerIntegrationJUnit5Tests {
 
 	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";
 
@@ -106,7 +98,7 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 			// tweak random dir name on win to be shorter
 			String uuid = UUID.randomUUID().toString();
 			long l = ByteBuffer.wrap(uuid.toString().getBytes()).getLong();
-			return name.getMethodName() + Long.toString(l, Character.MAX_RADIX);
+			return testName + Long.toString(l, Character.MAX_RADIX);
 		}
 		else {
 			return super.randomName();
@@ -128,8 +120,11 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 
 		String deploymentId = appDeployer().deploy(request);
 		Timeout timeout = deploymentTimeout();
-		assertThat(deploymentId, eventually(hasStatusThat(
-				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+				.atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+				.untilAsserted(() -> {
+			assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed);
+		});
 
 		Map<String, AppInstanceStatus> instances = appDeployer().status(deploymentId).getInstances();
 		String url = null;
@@ -146,21 +141,24 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 
 		timeout = undeploymentTimeout();
 		appDeployer().undeploy(deploymentId);
-		assertThat(deploymentId, eventually(hasStatusThat(
-				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+				.atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+				.untilAsserted(() -> {
+			assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown);
+		});
 
-		assertThat(url, notNullValue());
+		assertThat(url).isNotNull();
 		if (LocalDeployerUtils.isWindows()) {
 			// windows is weird, we may still get Path or PATH
-			assertThat(env, anyOf(containsString("\"Path\""), containsString("\"PATH\"")));
+			assertThat(env).containsIgnoringCase("path");
 		}
 		else {
-			assertThat(env, containsString("\"PATH\""));
+			assertThat(env).contains("\"PATH\"");
 			// we're not using SAJ so it's i.e.
 			// INSTANCE_INDEX not instance.index
-			assertThat(env, containsString("\"INSTANCE_INDEX\""));
-			assertThat(env, containsString("\"SPRING_APPLICATION_INDEX\""));
-			assertThat(env, containsString("\"SPRING_CLOUD_APPLICATION_GUID\""));
+			assertThat(env).contains("\"INSTANCE_INDEX\"");
+			assertThat(env).contains("\"SPRING_APPLICATION_INDEX\"");
+			assertThat(env).contains("\"SPRING_CLOUD_APPLICATION_GUID\"");
 		}
 	}
 
@@ -177,15 +175,21 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 
 		String deploymentId = appDeployer().deploy(request);
 		Timeout timeout = deploymentTimeout();
-		assertThat(deploymentId, eventually(hasStatusThat(
-				Matchers.<AppStatus>hasProperty("state", is(deployed))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+				.atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+				.untilAsserted(() -> {
+			assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.deployed);
+		});
 
 		log.info("Undeploying {}...", deploymentId);
 
 		timeout = undeploymentTimeout();
 		appDeployer().undeploy(deploymentId);
-		assertThat(deploymentId, eventually(hasStatusThat(
-				Matchers.<AppStatus>hasProperty("state", is(unknown))), timeout.maxAttempts, timeout.pause));
+		await().pollInterval(Duration.ofMillis(timeout.pause))
+				.atMost(Duration.ofMillis(timeout.maxAttempts * timeout.pause))
+				.untilAsserted(() -> {
+			assertThat(appDeployer().status(deploymentId).getState()).isEqualTo(DeploymentState.unknown);
+		});
 	}
 
 	@Test
@@ -199,11 +203,11 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 		AppDeployer deployer = appDeployer();
 		String deploymentId = deployer.deploy(request);
 		AppStatus appStatus = deployer.status(deploymentId);
-		assertTrue(appStatus.getInstances().size() > 0);
+		assertThat(appStatus.getInstances()).hasSizeGreaterThan(0);
 		for (Entry<String, AppInstanceStatus> instanceStatusEntry : appStatus.getInstances().entrySet()) {
 			Map<String, String> attributes = instanceStatusEntry.getValue().getAttributes();
-			assertFalse(attributes.containsKey("stdout"));
-			assertFalse(attributes.containsKey("stderr"));
+			assertThat(attributes).doesNotContainKey("stdout");
+			assertThat(attributes).doesNotContainKey("stderr");
 		}
 		deployer.undeploy(deploymentId);
 	}
@@ -227,12 +231,12 @@ public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDepl
 			try {
 				String containerId = getCommandOutput("docker ps -q --filter ancestor="+ TESTAPP_DOCKER_IMAGE_NAME);
 				String logOutput = getCommandOutput("docker logs "+ containerId);
-				assertTrue(logOutput.contains("Listening for transport dt_socket at address: 9999"));
+				assertThat(logOutput).contains("Listening for transport dt_socket at address: 9999");
 			} catch (IOException e) {
 			}
 		}
 		else {
-			assertEquals("deploying", appStatus.toString());
+			assertThat(appStatus.toString()).contains("deploying");
 		}
 
 		deployer.undeploy(deploymentId);

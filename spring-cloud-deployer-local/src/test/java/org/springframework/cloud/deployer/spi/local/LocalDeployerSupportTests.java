@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.cloud.deployer.spi.core.AppDefinition;
 import org.springframework.cloud.deployer.spi.core.AppDeploymentRequest;
@@ -30,10 +30,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the AbstractLocalDeployerSupport
@@ -45,7 +42,7 @@ public class LocalDeployerSupportTests {
 	private LocalDeployerProperties localDeployerProperties;
 	private AbstractLocalDeployerSupport localDeployerSupport;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		localDeployerProperties = new LocalDeployerProperties();
 		localDeployerSupport = new AbstractLocalDeployerSupport(this.localDeployerProperties) {};
@@ -59,9 +56,9 @@ public class LocalDeployerSupportTests {
 		Map<String, String> environmentVariables = localDeployerSupport.formatApplicationProperties(appDeploymentRequest,
 				envVarsToUse);
 
-		assertThat(environmentVariables.size(), is(1));
-		assertThat(environmentVariables.keySet(), hasItem(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON));
-		assertThat(environmentVariables.get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON), is("{\"test.foo\":\"foo\",\"test.bar\":\"bar\"}"));
+		assertThat(environmentVariables).hasSize(1);
+		assertThat(environmentVariables).containsEntry(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON,
+				"{\"test.foo\":\"foo\",\"test.bar\":\"bar\"}");
 	}
 
 	@Test
@@ -78,7 +75,7 @@ public class LocalDeployerSupportTests {
 				deploymentPropertites, commandLineArgs);
 
 		int portToUse = localDeployerSupport.calcServerPort(appDeploymentRequest, false, new HashMap<>());
-		assertThat(portToUse, is(9292));
+		assertThat(portToUse).isEqualTo(9292);
 
 		// test adding to command line args, which has higher precedence than application properties
 		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG  + 9191);
@@ -86,12 +83,12 @@ public class LocalDeployerSupportTests {
 				deploymentPropertites, commandLineArgs);
 
 		portToUse = localDeployerSupport.calcServerPort(appDeploymentRequest, false, new HashMap<>());
-		assertThat(portToUse, is(9191));
+		assertThat(portToUse).isEqualTo(9191);
 
 		// test using dynamic port assignment
 		portToUse = localDeployerSupport.calcServerPort(appDeploymentRequest, true, new HashMap<>());
-		assertThat(portToUse, not(9191));
-		assertThat(portToUse, not(9292));
+		assertThat(portToUse).isNotEqualTo(9191);
+		assertThat(portToUse).isNotEqualTo(9292);
 	}
 
 	@Test
@@ -103,8 +100,8 @@ public class LocalDeployerSupportTests {
 		Object requestFactory = ReflectionTestUtils.getField(restTemplate, "requestFactory");
 		Object connectTimeout = ReflectionTestUtils.getField(requestFactory, "connectTimeout");
 		Object readTimeout = ReflectionTestUtils.getField(requestFactory, "readTimeout");
-		assertThat(connectTimeout, is(1000));
-		assertThat(readTimeout, is(1000));
+		assertThat(connectTimeout).isEqualTo(1000);
+		assertThat(readTimeout).isEqualTo(1000);
 	}
 
 	@Test
@@ -116,8 +113,8 @@ public class LocalDeployerSupportTests {
 		Object requestFactory = ReflectionTestUtils.getField(restTemplate, "requestFactory");
 		Object connectTimeout =  ReflectionTestUtils.getField(requestFactory,"connectTimeout");
 		Object readTimeout = ReflectionTestUtils.getField(requestFactory, "readTimeout");
-		assertThat(connectTimeout, is(-1));
-		assertThat(readTimeout, is(-1));
+		assertThat(connectTimeout).isEqualTo(-1);
+		assertThat(readTimeout).isEqualTo(-1);
 	}
 
 	protected AppDeploymentRequest createAppDeploymentRequest() throws MalformedURLException {
