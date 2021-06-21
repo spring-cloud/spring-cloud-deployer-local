@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -206,6 +207,30 @@ public class JavaExecutionCommandBuilderTests {
 		assertThat(builder.environment().keySet()).contains(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON);
 		assertThat(builder.environment().get(AbstractLocalDeployerSupport.SPRING_APPLICATION_JSON)).isEqualTo("{\"foo\":\"bar\",\"debug\":\"true\"}");
 
+	}
+
+	@Test
+	public void testRetainEnv() {
+		LocalDeployerProperties properties1 = new LocalDeployerProperties();
+		LocalAppDeployer deployer1 = new LocalAppDeployer(properties1);
+		AppDefinition definition1 = new AppDefinition("foo", null);
+		AppDeploymentRequest request1 = new AppDeploymentRequest(definition1, testResource(), deploymentProperties);
+		ProcessBuilder builder1 = deployer1.buildProcessBuilder(request1, definition1.getProperties(), Optional.of(1), "foo");
+		List<String> env1 = builder1.environment().keySet().stream().map(String::toLowerCase).collect(Collectors.toList());
+
+		LocalDeployerProperties properties2 = new LocalDeployerProperties();
+		properties2.setEnvVarsToInherit(new String[0]);
+		LocalAppDeployer deployer2 = new LocalAppDeployer(properties2);
+		AppDefinition definition2 = new AppDefinition("foo", null);
+		AppDeploymentRequest request2 = new AppDeploymentRequest(definition2, testResource(), deploymentProperties);
+		ProcessBuilder builder2 = deployer2.buildProcessBuilder(request2, definition2.getProperties(), Optional.of(1), "foo");
+		List<String> env2 = builder2.environment().keySet().stream().map(String::toLowerCase).collect(Collectors.toList());
+
+		if (env1.contains("path")) {
+			// path should be there, and it was check that something were removed
+			assertThat(builder1.environment().keySet().size()).isGreaterThan(builder2.environment().keySet().size());
+		}
+		assertThat(env2).doesNotContain("path");
 	}
 
 	protected Resource testResource() {
