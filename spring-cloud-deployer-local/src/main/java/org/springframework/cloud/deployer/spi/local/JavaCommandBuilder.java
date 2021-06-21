@@ -21,10 +21,13 @@ import java.net.Inet4Address;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -91,9 +94,37 @@ public class JavaCommandBuilder implements CommandBuilder {
 
 		ProcessBuilder builder = new ProcessBuilder(AbstractLocalDeployerSupport.windowsSupport(commands.toArray(new String[0])));
 
+		// retain before we put in app related variables.
+		retainEnvVars(builder.environment(), localDeployerProperties);
 		builder.environment().putAll(appInstanceEnv);
 
 		return builder;
+	}
+
+	/**
+	 * Retain the environment variable strings in the provided set indicated by
+	 * {@link LocalDeployerProperties#getEnvVarsToInherit}.
+	 * This assumes that the provided set can be modified.
+	 *
+	 * @param vars set of environment variable strings
+	 * @param localDeployerProperties local deployer properties
+	 */
+	protected void retainEnvVars(Map<String, String> vars, LocalDeployerProperties localDeployerProperties) {
+		List<String> patterns = new ArrayList<>(Arrays.asList(localDeployerProperties.getEnvVarsToInherit()));
+		for (Iterator<Entry<String, String>> iterator = vars.entrySet().iterator(); iterator.hasNext();) {
+			Entry<String, String> entry = iterator.next();
+			String var = entry.getKey();
+			boolean retain = false;
+			for (String pattern : patterns) {
+				if (Pattern.matches(pattern, var)) {
+					retain = true;
+					break;
+				}
+			}
+			if (!retain) {
+				iterator.remove();
+			}
+		}
 	}
 
 	protected void addJavaOptions(List<String> commands, Map<String, String> deploymentProperties,
