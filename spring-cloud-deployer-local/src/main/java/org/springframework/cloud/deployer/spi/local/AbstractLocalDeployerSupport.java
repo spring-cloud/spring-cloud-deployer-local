@@ -177,8 +177,8 @@ public abstract class AbstractLocalDeployerSupport {
 						localDeployerProperties, debugAddressOption);
 
 		logger.info(String.format("Command to be executed: %s", String.join(" ", builder.command())));
-		logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
-				.map(entry -> entry.getKey() + " : " + entry.getValue()).collect(Collectors.joining(", "))));
+		//logger.debug(String.format("Environment Variables to be used : %s", builder.environment().entrySet().stream()
+		//		.map(entry -> entry.getKey() + " : " + entry.getValue()).collect(Collectors.joining(", "))));
 		return builder;
 	}
 
