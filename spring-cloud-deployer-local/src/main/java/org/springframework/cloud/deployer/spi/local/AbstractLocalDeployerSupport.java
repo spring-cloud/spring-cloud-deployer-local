@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,6 @@ import org.springframework.cloud.deployer.spi.util.RuntimeVersionUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.Assert;
-import org.springframework.util.SocketUtils;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -357,7 +356,7 @@ public abstract class AbstractLocalDeployerSupport {
 		for (int retryCount = 0; retryCount < 5; retryCount++) {
 			int randomInt = getCommandBuilder(request).getPortSuggestion(localDeployerProperties);
 			try {
-				availPorts = SocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
+				availPorts = DeployerSocketUtils.findAvailableTcpPorts(5, randomInt, randomInt + 5);
 				try {
 					// Give some time for the system to release up ports that were scanned.
 					Thread.sleep(100);
