@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 the original author or authors.
+ * Copyright 2016-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,7 +51,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.util.FileSystemUtils;
-import org.springframework.util.SocketUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -250,7 +249,7 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 	private void basicLaunchAndValidation(AppDefinition definition, Map<String, String> deploymentProperties) {
 		List<String> commandLineArgs = new ArrayList<>(1);
 		// Test to ensure no issues parsing server.port command line arg.
-		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG + SocketUtils.findAvailableTcpPort(LocalTaskLauncher.DEFAULT_SERVER_PORT));
+		commandLineArgs.add(LocalTaskLauncher.SERVER_PORT_KEY_COMMAND_LINE_ARG + DeployerSocketUtils.findAvailableTcpPort(LocalTaskLauncher.DEFAULT_SERVER_PORT));
 
 		AppDeploymentRequest request = new AppDeploymentRequest(definition, this.testApplication(), deploymentProperties, commandLineArgs);
 
