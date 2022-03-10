@@ -44,6 +44,7 @@ import org.springframework.util.Assert;
  * @author Gunnar Hillert
  * @author Gary Russell
  * @author Glenn Renfro
+ * @deprecated to be replaced with a more robust mechanism in https://github.com/spring-cloud/spring-cloud-deployer-local/issues/215
  */
 @Deprecated
 public class DeployerSocketUtils {
