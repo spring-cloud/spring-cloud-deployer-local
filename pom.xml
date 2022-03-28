@@ -4,20 +4,20 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-deployer-local-parent</artifactId>
-	<version>2.7.3-SNAPSHOT</version>
+	<version>2.7.4-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<parent>
 		<groupId>org.springframework.cloud</groupId>
 		<artifactId>spring-cloud-deployer-parent</artifactId>
-		<version>2.7.3-SNAPSHOT</version>
+		<version>2.7.4-SNAPSHOT</version>
 		<relativePath />
 	</parent>
 
 	<properties>
 		<java.version>1.8</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<spring-cloud-deployer.version>2.7.3-SNAPSHOT</spring-cloud-deployer.version>
+		<spring-cloud-deployer.version>2.7.4-SNAPSHOT</spring-cloud-deployer.version>
 	</properties>
 
 	<modules>
