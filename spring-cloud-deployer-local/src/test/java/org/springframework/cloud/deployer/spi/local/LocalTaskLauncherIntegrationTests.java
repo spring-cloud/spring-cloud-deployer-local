@@ -21,8 +21,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,15 +70,14 @@ import static org.awaitility.Awaitility.await;
  * @author David Turanski
  * @author Glenn Renfro
  * @author Ilayaperumal Gopinathan
+ * @author Ben Blinebury
  *
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
 		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
 @ExtendWith(OutputCaptureExtension.class)
 public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherIntegrationJUnit5Tests {
-
-	// @Rule
-	// public OutputCaptureRule outputCapture = new OutputCaptureRule();
+	private static final String SYMBOLIC_LINK = "symbolic_link.txt";
 
 	@Autowired
 	private TaskLauncher taskLauncher;
@@ -122,6 +124,40 @@ public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherInteg
 		assertThat(output).contains("Logs will be in");
 	}
 
+	@Test
+	public void testBasicLaunchWithSymbolicLink(CapturedOutput output) throws Exception {
+		Map<String, String> appProperties = new HashMap<>();
+		appProperties.put("killDelay", "0");
+		appProperties.put("exitCode", "0");
+
+		Path symlink = createSymbolicLink();
+
+		AppDefinition definition = new AppDefinition(this.randomName(), appProperties);
+		Map<String, String> deploymentProperties = Collections.singletonMap("spring.cloud.deployer.local.workingDirectoriesRoot", SYMBOLIC_LINK);
+
+		basicLaunchAndValidation(definition, deploymentProperties);
+
+		assertThat(output).contains("Logs will be in");
+
+		Files.delete(Paths.get(symlink.toString()));
+	}
+
+	@TempDir
+	private File tempDirectory;
+
+	private Path createSymbolicLink() throws IOException {
+		File testFile = new File(tempDirectory, "testFile.txt");
+
+		Path target = testFile.toPath();
+
+		Path link = Paths.get(SYMBOLIC_LINK);
+
+		if (Files.exists(link)) {
+			Files.delete(link);
+		}
+
+		return Files.createSymbolicLink(link, target);
+	}
 
 	@Test
 	public void testInheritLoggingAndWorkDir(CapturedOutput output) throws IOException {
