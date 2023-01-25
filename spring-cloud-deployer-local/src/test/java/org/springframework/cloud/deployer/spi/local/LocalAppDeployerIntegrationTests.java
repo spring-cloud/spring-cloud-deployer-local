@@ -72,7 +72,7 @@ import static org.awaitility.Awaitility.await;
  * @author Ilayaperumal Gopinathan
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot"})
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/snapshot"})
 public class LocalAppDeployerIntegrationTests extends AbstractAppDeployerIntegrationJUnit5Tests {
 
 	private static final String TESTAPP_DOCKER_IMAGE_NAME = "springcloud/spring-cloud-deployer-spi-test-app:latest";

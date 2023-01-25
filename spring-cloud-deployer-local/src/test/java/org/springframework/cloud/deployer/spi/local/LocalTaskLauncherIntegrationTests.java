@@ -71,7 +71,7 @@ import static org.awaitility.Awaitility.await;
  *
  */
 @SpringBootTest(classes = {Config.class, AbstractIntegrationTests.Config.class}, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot" })
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/snapshot" })
 @ExtendWith(OutputCaptureExtension.class)
 public class LocalTaskLauncherIntegrationTests extends AbstractTaskLauncherIntegrationJUnit5Tests {
 

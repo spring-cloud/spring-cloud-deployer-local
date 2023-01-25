@@ -66,7 +66,7 @@ import static org.awaitility.Awaitility.await;
  * @author Ilayaperumal Gopinathan
  */
 @SpringBootTest(classes = { Config.class, AbstractIntegrationTests.Config.class }, value = {
-		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/libs-snapshot",
+		"maven.remoteRepositories.springRepo.url=https://repo.spring.io/snapshot",
 		"spring.cloud.deployer.local.use-spring-application-json=false" })
 public class LocalAppDeployerEnvironmentIntegrationTests extends AbstractAppDeployerIntegrationJUnit5Tests {
 
