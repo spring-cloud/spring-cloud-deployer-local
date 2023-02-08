@@ -227,7 +227,7 @@ public class LocalTaskLauncher extends AbstractLocalDeployerSupport implements T
 		return runningExecutionCount;
 	}
 
-	private boolean maxConcurrentExecutionsReached() {
+	private synchronized boolean maxConcurrentExecutionsReached() {
 		return getRunningTaskExecutionCount() >= getMaximumConcurrentTasks();
 	}
 
